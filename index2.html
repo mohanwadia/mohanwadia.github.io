@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clockify Activities</title>
+</head>
+<body>
+    <h1>Clockify Activities</h1>
+    <div id="activities"></div>
+
+    <script>
+        const CLOCKIFY_API_KEY = "NmM2MTY1MGMtYjkzYS00MGVkLWE1MTAtOTJkZmJkYmNkYzky";
+        const WORKSPACE_ID = "656417f73f3a0765771afe83";
+        const USER_ID = "656417f73f3a0765771afe80";
+
+        async function getAllActivities() {
+            const url = `https://api.clockify.me/api/v1/workspaces/${WORKSPACE_ID}/user/${USER_ID}/time-entries`;
+            const headers = {
+                "Content-Type": "application/json",
+                "X-Api-Key": CLOCKIFY_API_KEY
+            };
+
+            try {
+                const response = await fetch(url, { headers });
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    console.error(`Error fetching time activities. Status code: ${response.status}`);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`An error occurred: ${error}`);
+                return null;
+            }
+        }
+
+        async function getSubjectName(projectId) {
+            const url = `https://api.clockify.me/api/v1/workspaces/${WORKSPACE_ID}/projects/${projectId}`;
+            const headers = {
+                "Content-Type": "application/json",
+                "X-Api-Key": CLOCKIFY_API_KEY
+            };
+
+            try {
+                const response = await fetch(url, { headers });
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return null; // no subject provided
+                }
+            } catch (error) {
+                console.error(`An error occurred: ${error}`);
+                return null;
+            }
+        }
+
+        function formatUtc(utc) {
+            let durationStr = utc.slice(2);
+            if (durationStr === "0S") {
+                return "0h, 0m";
+            }
+
+            let hours = 0, minutes = 0;
+            if (durationStr.includes('H')) {
+                [hours, durationStr] = durationStr.split('H');
+            }
+            if (durationStr.includes('M')) {
+                [minutes] = durationStr.split('M');
+            }
+
+            return `${hours}h, ${minutes}m`;
+        }
+
+        async function displayActivities() {
+            const activities = await getAllActivities();
+            if (activities) {
+                const activitiesDiv = document.getElementById('activities');
+                if (activities.length > 0) {
+                    for (const entry of activities) {
+                        if (!entry.timeInterval.end) {
+                            const project = await getSubjectName(entry.projectId);
+                            const description = entry.description || "No Description Provided";
+                            const utc = entry.timeInterval.start;
+                            const epoch = new Date(utc).getTime() / 1000;
+
+                            let state = "No Subject Provided";
+                            if (project) {
+                                const projectDuration = formatUtc(project.duration || "PT0S");
+                                state = `${project.name} (${projectDuration})`;
+                            }
+
+                            const activityDiv = document.createElement('div');
+                            activityDiv.innerHTML = `
+                                <h2>${state}</h2>
+                                <p>Description: ${description}</p>
+                                <p>Start Time: ${new Date(epoch * 1000).toLocaleString()}</p>
+                            `;
+                            activitiesDiv.appendChild(activityDiv);
+                        }
+                    }
+                } else {
+                    activitiesDiv.innerHTML = '<p>No activities found.</p>';
+                }
+            } else {
+                console.error("Unable to fetch time activities.");
+            }
+        }
+
+        displayActivities();
+    </script>
+</body>
+</html>
