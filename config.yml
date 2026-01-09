@@ -55,7 +55,7 @@ params:
     profileMode:
           enabled: true
           title: Mohan Wadia
-          subtitle: "I am a Professor in the Institute of Romance Philology at the University of Regensburg, Germany. My research focuses on Portuguese irregular verbs. I was a doctoral student of Professor Dr Dieter Vogelsang in Munich, and later a second assistant of Professor Walter Schoeffler-Henschell at the University of Wiesbaden."
+          subtitle: "Student"
           imageUrl: "picture.jpeg"
           imageWidth: 160
           imageHeight: 160
