@@ -54,7 +54,7 @@ params:
     math: true
     profileMode:
           enabled: true
-          title: Mohan Wadia
+          title: "Mohan Wadia"
           subtitle: "Student"
           imageUrl: "picture.jpeg"
           imageWidth: 160
