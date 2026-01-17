@@ -296,25 +296,6 @@
     }; // end ssBackToTop
 
 
-   /* Add smooth transitions between pages
-    * ------------------------------------------------------ */
-    const ssPageTransitions = function() {
-
-        document.querySelectorAll('a[href$=".html"]').forEach(link => {
-            link.addEventListener('click', function(e) {
-                const href = this.getAttribute('href');
-                if (href && !this.target) {
-                    e.preventDefault();
-                    document.body.style.opacity = '0';
-                    setTimeout(() => {
-                        window.location.href = href;
-                    }, 300);
-                }
-            });
-        });
-
-    }; // end ssPageTransitions
-
 
    /* initialize
     * ------------------------------------------------------ */
@@ -330,7 +311,6 @@
         ssAlertBoxes();
         ssSmoothScroll();
         ssBackToTop();
-        ssPageTransitions();
 
     })();
 
