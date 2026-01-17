@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+
+    <!--- basic page needs
+    ================================================== -->
+    <meta charset="utf-8">
+    <title>Blog - Mohan Wadia</title>
+    <meta name="description" content="Articles on coding, education, and STEM.">
+    <meta name="author" content="Mohan Wadia">
+
+    <!-- mobile specific metas
+    ================================================== -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSS
+    ================================================== -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/vendor.css">
+
+    <!-- script
+    ================================================== -->
+    <script defer src="js/vendor/fontawesome/all.min.js"></script>
+
+    <!-- favicons
+    ================================================== -->
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="manifest" href="site.webmanifest">
+
+</head>
+
+<body id="top" class="ss-preload">
+
+    <!-- preloader
+    ================================================== -->
+    <div id="preloader">
+        <div id="loader"></div>
+    </div>
+
+    <!-- header
+    ================================================== -->
+    <header class="s-header">
+        <div class="row s-header__nav-wrap">
+            <nav class="s-header__nav">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="vce.html">VCE Tutoring</a></li>
+                    <li><a href="blog.html">Blog</a></li>
+                    <li><a href="projects.html">Projects</a></li>
+                </ul>
+            </nav>
+        </div>
+        
+        <a class="s-header__menu-toggle" href="#0" title="Menu">
+            <span class="s-header__menu-icon"></span>
+        </a>
+    </header>
+
+    <!-- blog hero
+    ================================================== -->
+    <section id="blog-hero" class="s-hero target-section">
+        <div class="s-hero__bg rellax" data-rellax-speed="-7"></div>
+
+        <div class="row s-hero__content">
+            <div class="column">
+                <div class="s-hero__content-about">
+                    <h1>Blog</h1>
+                    <h3>Thoughts on coding, education, robotics, and more.</h3>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- blog posts
+    ================================================== -->
+    <section id="blog" class="s-blog target-section">
+        <div class="row">
+            <div class="column large-12">
+                <div id="blog-posts-container"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- footer
+    ================================================== -->
+    <footer class="s-footer">
+        <div class="row">
+            <div class="column large-4 medium-6 w-1000-stack s-footer__social-block">
+                <ul class="s-footer__social">
+                    <li><a href="https://github.com/mohanwadia"><i class="fab fa-github-f" aria-hidden="true"></i></a></li>
+                    <li><a href="#0"><i class="fab fa-twitter" aria-hidden="true"></i></a></li>
+                    <li><a href="https://www.instagram.com/mohanwadia/"><i class="fab fa-instagram" aria-hidden="true"></i></a></li>
+                    <li><a href="#0"><i class="fab fa-dribbble" aria-hidden="true"></i></a></li>
+                    <li><a href="https://au.linkedin.com/in/mohan-wadia-0011b0271"><i class="fab fa-linkedin-in" aria-hidden="true"></i></a></li>
+                </ul>
+            </div>
+
+            <div class="column large-7 medium-6 w-1000-stack ss-copyright">
+                <span>ABN 32 217 965 649</span> 
+            </div>
+        </div>
+
+        <div class="ss-go-top">
+            <a class="smoothscroll" title="Back to Top" href="#top">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 4h12v2H6zm5 10v6h2v-6h5l-6-6-6 6z"/></svg>
+            </a>
+        </div>
+    </footer>
+
+    <!-- JavaScript
+    ================================================== -->
+    <script src="js/plugins.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        // Fetch and display blog posts from JSON
+        fetch('blog-posts.json')
+            .then(response => response.json())
+            .then(posts => {
+                const container = document.getElementById('blog-posts-container');
+                posts.forEach(post => {
+                    const postHTML = `
+                        <article class="blog-post">
+                            <h2>${post.title}</h2>
+                            <p class="blog-post__meta">
+                                <span class="blog-post__date">${post.date}</span>
+                                <span class="blog-post__category">${post.category}</span>
+                            </p>
+                            <p>${post.excerpt}</p>
+                            <a href="${post.link}" class="btn btn--primary">Read More</a>
+                        </article>
+                    `;
+                    container.innerHTML += postHTML;
+                });
+            })
+            .catch(error => console.error('Error loading blog posts:', error));
+    </script>
+
+</body>
+
+</html>

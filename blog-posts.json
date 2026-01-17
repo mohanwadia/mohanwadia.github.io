@@ -1,0 +1,16 @@
+[
+    {
+        "title": "Getting Started with VCE Software Development",
+        "date": "January 15, 2026",
+        "category": "Education",
+        "excerpt": "A comprehensive guide to tackling VCE Software Development with practical tips and resources.",
+        "link": "blog-posts/vce-software-dev.html"
+    },
+    {
+        "title": "Why Tutoring Matters in STEM",
+        "date": "January 10, 2026",
+        "category": "STEM",
+        "excerpt": "Exploring the impact of personalized tutoring on student success in STEM subjects.",
+        "link": "blog-posts/tutoring-stem.html"
+    }
+]

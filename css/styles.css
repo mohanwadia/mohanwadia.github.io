@@ -2458,6 +2458,8 @@ input[type="button"].btn--primary:focus {
  *		</blockquote>
  * </figure>
  *
+ * Extend this object into your markup.
+ *
  * --------------------------------------------------------------------- */
 .pull-quote {
     position: relative;
@@ -2487,7 +2489,7 @@ input[type="button"].btn--primary:focus {
     height: var(--vspace-1_25);
     width: var(--vspace-1_25);
     background-repeat: no-repeat;
-    background: center center;
+    background-position: center;
     background-size: contain;
     background-image: url(../images/icons/icon-quote.svg);
     -webkit-transform: translate3d(-50%, 0, 0);
@@ -2513,6 +2515,8 @@ input[type="button"].btn--primary:focus {
     padding: 0;
     margin: var(--vspace-1) 0;
 }
+
+
 
 .stats-tabs li {
     display: inline-block;
@@ -4709,4 +4713,26 @@ input[type="button"].btn--primary:focus {
     .s-footer__social li {
         margin-right: 1.4rem;
     }
+}
+
+/* Smooth page transitions */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+a {
+    transition: all 0.3s ease;
 }
