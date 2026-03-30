@@ -3392,8 +3392,8 @@ button.btn--pill {
 }
 
 .s-header.sticky {
-    opacity: 0;
-    visibility: hidden;
+    opacity: 1;
+    visibility: visible;
     background-color: var(--color-gray-19);
     position: fixed;
     top: 0;
@@ -3656,6 +3656,26 @@ button.btn--pill {
     min-height: calc(25.5 * var(--space));
     overflow: hidden;
     position: relative;
+}
+
+.s-hero--compact {
+    background-color: #000;
+    height: auto;
+    min-height: 20%;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.s-hero--compact .s-hero__content {
+    padding-top: 8rem;
+    padding-bottom: 1.7rem;
+}
+
+.s-hero--compact .s-hero__content h1 {
+    font-size: 2.75rem;
+    line-height: 1.2;
+    color: #fff;
+    margin: 0;
 }
 
 .s-hero__bg {
@@ -5137,4 +5157,21 @@ button.btn--pill {
 
 .nav-right {
     margin-left: auto;
+}
+
+/* TUTORING PAGE */
+/* This prevents right-clicking and text selection on the entire page */
+body {
+    -webkit-user-select: none;
+    /* Safari */
+    -ms-user-select: none;
+    /* IE 10+ */
+    user-select: none;
+    /* Standard */
+}
+
+/* Specifically target the tutoring container if you don't want to lock the whole site */
+.resource-viewer {
+    pointer-events: none;
+    /* This makes the iframe 'unclickable' but still scrollable with a mouse wheel */
 }

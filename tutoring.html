@@ -1,396 +1,135 @@
 <!DOCTYPE html>
-<html class="no-js" lang="en">
+<html>
 
 <head>
+    <title>Student Resource Portal</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
 
-    <!--- basic page needs
-    ================================================== -->
-    <meta charset="utf-8">
-    <title>Tutoring - Mohan Wadia</title>
-    <meta name="description" content="Tutoring Services">
-    <meta name="author" content="author">
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #000000;
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
 
-    <!-- mobile specific metas
-    ================================================== -->
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+        .sidebar h2 {
+            padding: 20px;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #34495e;
+        }
 
-    <!-- CSS
-    ================================================== -->
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/vendor.css">
+        /* Scrollable area for your 20 links */
+        .link-container {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
 
-    <!-- script
-    ================================================== -->
-    <script defer src="js/vendor/fontawesome/all.min.js"></script>
+        .nav-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #34495e;
+            transition: 0.2s;
+        }
 
-    <!-- favicons
-    ================================================== -->
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-    <link rel="manifest" href="site.webmanifest">
+        .nav-item:hover {
+            background: #34495e;
+        }
 
+        .nav-item.active {
+            background: #3498db;
+            border-left: 5px solid #fff;
+        }
+
+        /* The Main Viewer */
+        .viewer {
+            flex-grow: 1;
+            position: relative;
+            background: #eee;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Invisible Shield to block selection but allow scroll */
+        .shield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+        }
+    </style>
 </head>
 
-<body id="top" class="ss-preload">
+<body oncontextmenu="return false;">
 
-
-    <!-- preloader
-    ================================================== -->
-    <div id="preloader">
-        <div id="loader"></div>
+    <div class="sidebar">
+        <h2>VCE Software Development 3&4</h2>
+        <div class="link-container" id="sidebar-links">
+        </div>
+        <a href="/" style="padding: 20px; color: #bdc3c7; text-decoration: none;">← Back to mohanwadia.com</a>
     </div>
 
-
-    <!-- header
-    ================================================== -->
-    <header class="s-header">
-        <div class="row s-header__nav-wrap">
-            <nav class="s-header__nav">
-                <ul>
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="vce.html">VCE</a></li>
-                    <li><a href="data-analysis.html">Data Analysis</a></li>
-                    <li class="nav-right"><a href="tutoring.html">Tutoring Login</a></li>
-                </ul>
-            </nav>
-        </div> <!-- end row -->
-
-        <a class="s-header__menu-toggle" href="#0" title="Menu">
-            <span class="s-header__menu-icon"></span>
-        </a>
-    </header> <!-- end s-header -->
-
-
-    <!-- hero
-    ================================================== -->
-    <section id="hero" class="s-hero target-section">
-
-        <div class="s-hero__bg rellax" data-rellax-speed="-7"></div>
-
-        <div class="row s-hero__content">
-            <div class="column">
-
-                <div class="s-hero__content-about">
-
-                    <h1>Tutoring Homepage</h1>
-
-                    <h3>
-                        You can find some of my <span><a class="smoothscroll" href="#resources">free
-                                resourcess</a></span> below.<br>
-                        Let me <span><a class="smoothscroll" href="#hero">help you</a></span> achieve the ATAR <span><a
-                                class="smoothscroll" href="#hero">you deserve</a></span>.
-                    </h3>
-
-                    <div class="s-hero__content-social">
-                        <a href="https://au.linkedin.com/in/mohan-wadia-0011b0271" target="_blank"
-                            rel="noopener noreferrer"><i class="fab fa-linkedin-in" aria-hidden="true"></i></a>
-                        <a href="mailto:mail@mohanwadia.com" target="_blank" rel="noopener noreferrer"><i
-                                class="fas fa-envelope" aria-hidden="true"></i></a>
-                        <a href="https://www.facebook.com/profile.php?id=61586548661812" target="_blank"
-                            rel="noopener noreferrer"><i class="fab fa-facebook" aria-hidden="true"></i></a>
-                        <a href="https://www.instagram.com/mohanwadia/" target="_blank" rel="noopener noreferrer"><i
-                                class="fab fa-instagram" aria-hidden="true"></i></a>
-                        <a href="https://github.com/mohanwadia" target="_blank" rel="noopener noreferrer"><i
-                                class="fab fa-github" aria-hidden="true"></i></a>
-                    </div>
-
-                </div> <!-- end s-hero__content-about -->
-
-            </div>
-        </div> <!-- s-hero__content -->
-
-        <div class="s-hero__scroll">
-            <a href="#resources" class="s-hero__scroll-link smoothscroll">
-                <span class="scroll-arrow">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                        style="fill:rgba(0, 0, 0, 1)">
-                        <path
-                            d="M18.707 12.707L17.293 11.293 13 15.586 13 6 11 6 11 15.586 6.707 11.293 5.293 12.707 12 19.414z">
-                        </path>
-                    </svg>
-                </span>
-                <span class="scroll-text">Scroll Down</span>
-            </a>
-        </div> <!-- s-hero__scroll -->
-
-    </section> <!-- end s-hero -->
-
-    <!-- CTA Section -->
-    <section class="s-cta">
-        <div class="row">
-            <div class="column">
-                <h3 class="h2 section-desc">Ready to Excel in VCE?</h3>
-            </div>
-        </div>
-
-        <div class="row cta-content">
-            <div class="column">
-                <p>Get expert tutoring in VCE Literature, Methods, <br>Religion & Society, and Software Development.
-                    <br>Grade 7-10 tutoring also available.</p>
-                <a href="mailto:mail@mohanwadia.com" class="btn btn--primary h-full-width">Contact Me</a>
-            </div>
-        </div>
-    </section>
-
-    <!-- resources
-    ================================================== -->
-    <section id="resources" class="s-resume target-section">
-
-        <div class="row s-resume__section">
-            <div class="column large-3 tab-12">
-                <h3 class="section-header-allcaps">Religion & Society</h3>
-            </div>
-            <div class="column large-9 tab-12">
-                <div class="resume-block">
-                    <div class="resume-block__header">
-                        <h4 class="h3">Full Notes & Resources</h4>
-                        <p class="text-muted">2023-2027 VCE Curriculum</p>
-                    </div>
-                    <a href="https://religionandsociety.notion.site/Religion-and-Society-3-4-Resources-2023-2027-fa55f491ae374d97bff4766e3eb8efd1?pvs=74"
-                        target="_blank" rel="noopener noreferrer" class="btn btn--secondary">Free Resources →</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="row s-resume__section">
-            <div class="column large-3 tab-12">
-                <h3 class="section-header-allcaps">Mathematical Methods</h3>
-            </div>
-            <div class="column large-9 tab-12">
-                <div class="resume-block">
-                    <div class="resume-block__header">
-                        <h4 class="h3">One-Page Summary Sheet</h4>
-                        <p class="text-muted">A quick reference guide <strong>PERFECT</strong> for sticking on the front
-                            of your bound reference.</p>
-                    </div>
-                    <a href="https://docs.google.com/document/d/1WBmOjEUkz6OTsQrM-OHtkvpQ7g13xf8kr0L5u7x6N2M/edit?tab=t.0"
-                        target="_blank" rel="noopener noreferrer" class="btn btn--secondary">Free Download →</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="row s-resume__section">
-            <div class="column large-3 tab-12">
-                <h3 class="section-header-allcaps">Specialist Mathematics</h3>
-            </div>
-            <div class="column large-9 tab-12">
-                <div class="resume-block">
-                    <div class="resume-block__header">
-                        <h4 class="h3">Two-Page Summary Sheet</h4>
-                        <p class="text-muted">A high-level view of the course</p>
-                    </div>
-                    <a href="https://docs.google.com/document/d/1WBmOjEUkz6OTsQrM-OHtkvpQ7g13xf8kr0L5u7x6N2M/edit?tab=t.r3ddlbdxy3ky"
-                        target="_blank" rel="noopener noreferrer" class="btn btn--secondary">Free Download →</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="row s-resume__section">
-            <div class="column large-3 tab-12">
-                <h3 class="section-header-allcaps">Literature</h3>
-            </div>
-            <div class="column large-9 tab-12">
-                <div class="resume-block">
-                    <div class="resume-block__header">
-                        <h4 class="h3">Notes</h4>
-                        <p class="text-muted">Detailed notes for these three texts</p>
-                    </div>
-                    <a href="https://docs.google.com/document/d/1EUkGvP2bZoiqbVsr6zoJBJejIGgjZq__sl_LeeeoppY/edit"
-                        target="_blank" rel="noopener noreferrer" class="btn btn--secondary">The Yield →</a>
-                    <a href="https://docs.google.com/document/d/1Uoux3pFUYzs15gRDGupnVfKomVFg_2b6CG4odUqGOPs/edit"
-                        target="_blank" rel="noopener noreferrer" class="btn btn--secondary">Dracula →</a>
-                    <a href="https://docs.google.com/document/d/11fP4DcMfMDsl4BSUgI-iqn2Ez5IcBfLZJv3pYboY8xc/edit"
-                        target="_blank" rel="noopener noreferrer" class="btn btn--secondary">Carol Ann Duffy →</a>
-                </div>
-            </div>
-        </div>
-
-
-
-        <div class="row s-resume__section">
-            <div class="column large-3 tab-12">
-                <h3 class="section-header-allcaps">Physics</h3>
-            </div>
-            <div class="column large-9 tab-12">
-                <div class="resume-block">
-                    <div class="resume-block__header">
-                        <h4 class="h3">Practice SACs</h4>
-                        <p class="text-muted">A set of three self-created high-level practice sacs with solutions and
-                            cheat sheets included</p>
-                    </div>
-                    <a href="https://drive.google.com/drive/folders/1dFguXluXxQY67lWzb9Q-ycb-PStlJFNL?usp=sharing"
-                        target="_blank" rel="noopener noreferrer" class="btn btn--secondary">Free Download →</a>
-                </div>
-            </div>
-        </div>
-
-        <div style="display:none" class="row s-resume__section">
-            <div class="column large-3 tab-12">
-                <h3 class="section-header-allcaps">Results</h3>
-            </div>
-            <div class="column large-9 tab-12">
-                <div class="resume-block">
-                    <div class="results-grid">
-                        <a href="#modal-01" class="result-card">
-                            <div class="result-card__value">42</div>
-                            <div class="result-card__label">Software Dev</div>
-                        </a>
-                        <a href="#modal-02" class="result-card">
-                            <div class="result-card__value">41</div>
-                            <div class="result-card__label">Literature</div>
-                        </a>
-                        <a href="#modal-03" class="result-card">
-                            <div class="result-card__value">41</div>
-                            <div class="result-card__label">Methods</div>
-                        </a>
-                        <a href="#modal-04" class="result-card">
-                            <div class="result-card__value">41</div>
-                            <div class="result-card__label">Religion & Soc</div>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </section>
-
-
-
-    <!-- Testimonials -->
-    <section style="display:none" id="testimonials" class="s-testimonials target-section">
-        <div class="s-testimonials__bg"></div>
-        <div class="row s-testimonials__header">
-            <div class="column large-12">
-                <h3>What Students Say</h3>
-            </div>
-        </div>
-
-        <div class="row s-testimonials__content">
-            <div class="column">
-                <div class="swiper-container testimonial-slider">
-                    <div class="swiper-wrapper">
-                        <div class="testimonial-slider__slide swiper-slide">
-                            <div class="testimonial-slider__author">
-                                <img src="images/avatars/user-02.jpg" alt="Student testimonial"
-                                    class="testimonial-slider__avatar">
-                                <cite class="testimonial-slider__cite">
-                                    <strong>Student Name</strong>
-                                    <span>VCE Methods Student</span>
-                                </cite>
-                            </div>
-                            <p>Mohan's tutoring helped me improve my methods score significantly. Highly recommended!
-                            </p>
-                        </div>
-                    </div>
-                    <div class="swiper-pagination"></div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- footer
-    ================================================== -->
-    <footer class="s-footer">
-        <div class="row">
-            <div class="column large-4 medium-6 w-1000-stack s-footer__social-block">
-                <ul class="s-footer__social">
-                    <li><a href="https://au.linkedin.com/in/mohan-wadia-0011b0271" target="_blank"
-                            rel="noopener noreferrer"><i class="fab fa-linkedin-in" aria-hidden="true"></i></a></li>
-                    <li><a href="mailto:mail@mohanwadia.com" target="_blank" rel="noopener noreferrer"><i
-                                class="fas fa-envelope" aria-hidden="true"></i></a></li>
-                    <li><a href="https://www.facebook.com/profile.php?id=61586548661812" target="_blank"
-                            rel="noopener noreferrer"><i class="fab fa-facebook" aria-hidden="true"></i></a></li>
-                    <li><a href="https://www.instagram.com/mohanwadia/" target="_blank" rel="noopener noreferrer"><i
-                                class="fab fa-instagram" aria-hidden="true"></i></a></li>
-                    <li><a href="https://github.com/mohanwadia" target="_blank" rel="noopener noreferrer"><i
-                                class="fab fa-github" aria-hidden="true"></i></a></li>
-                </ul>
-            </div>
-
-            <div class="column large-7 medium-6 w-1000-stack ss-copyright">
-                <span>ABN 32 217 965 649</span>
-                <span><a href="https://www.styleshout.com" target="_blank" rel="noopener noreferrer">Website
-                        template</a></span>
-            </div>
-        </div>
-
-        <div class="ss-go-top">
-            <a class="smoothscroll" title="Back to Top" href="#top">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M6 4h12v2H6zm5 10v6h2v-6h5l-6-6-6 6z" />
-                </svg>
-            </a>
-        </div> <!-- end ss-go-top -->
-    </footer>
-
-    <!-- Java Script
-    ================================================== -->
-    <script src="js/plugins.js"></script>
-    <script src="js/main.js"></script>
-
-    <!-- Modal Templates Popup
-    =========================================================== -->
-    <div id="modal-01" class="modal" hidden>
-        <div class="modal__overlay"></div>
-        <div class="modal__content">
-            <a href="#0" class="modal__close"></a>
-            <h5>Software Development - 42</h5>
-            <p>Achieved a score of 42/50 in VCE Software Development. Strong performance across design, implementation,
-                and testing components.</p>
-            <ul class="modal__cat">
-                <li>Object-Oriented Programming</li>
-                <li>Software Design</li>
-                <li>Problem Solving</li>
-            </ul>
-        </div>
+    <div class="viewer">
+        <div class="shield"></div>
+        <iframe id="main-frame" src=""></iframe>
     </div>
 
-    <div id="modal-02" class="modal" hidden>
-        <div class="modal__overlay"></div>
-        <div class="modal__content">
-            <a href="#0" class="modal__close"></a>
-            <h5>Literature - 41</h5>
-            <p>Achieved a score of 41/50 in VCE Literature. Demonstrated strong analytical and writing skills across all
-                texts and essays.</p>
-            <ul class="modal__cat">
-                <li>Text Analysis</li>
-                <li>Critical Writing</li>
-                <li>Interpretation</li>
-            </ul>
-        </div>
-    </div>
+    <script>
+        // 1. List all 20 of your Google Docs here
+        const resources = [
+            { name: "Study Design", id: "https://docs.google.com/document/d/1L5-2OdO_S_pARluJRRGfAcve8o_gFTZaHkkUz0YaCeM/edit?tab=t.0" },
+            { name: "Notes + Practice Questions", id: "https://docs.google.com/presentation/d/1JwYaZbHxpzzbb4SJPoOP1stzht1H3Z64smgDsaVljKE/edit?slide=id.p#slide=id.p" }
+            // ... Add all 20 here
+        ];
 
-    <div id="modal-03" class="modal" hidden>
-        <div class="modal__overlay"></div>
-        <div class="modal__content">
-            <a href="#0" class="modal__close"></a>
-            <h5>Mathematical Methods - 41</h5>
-            <p>Achieved a score of 41/50 in VCE Mathematical Methods. Solid understanding of calculus, functions, and
-                problem-solving techniques.</p>
-            <ul class="modal__cat">
-                <li>Calculus</li>
-                <li>Functions</li>
-                <li>Algebra</li>
-            </ul>
-        </div>
-    </div>
+        const linkContainer = document.getElementById('sidebar-links');
+        const frame = document.getElementById('main-frame');
 
-    <div id="modal-04" class="modal" hidden>
-        <div class="modal__overlay"></div>
-        <div class="modal__content">
-            <a href="#0" class="modal__close"></a>
-            <h5>Religion & Society - 41</h5>
-            <p>Achieved a score of 41/50 in VCE Religion and Society. Strong engagement with religious perspectives,
-                ethics, and social issues.</p>
-            <ul class="modal__cat">
-                <li>Religious Studies</li>
-                <li>Ethics</li>
-                <li>Social Analysis</li>
-            </ul>
-        </div>
-    </div>
+        // 2. Generate the sidebar buttons
+        resources.forEach((doc, index) => {
+            const div = document.createElement('div');
+            div.className = 'nav-item';
+            div.innerText = doc.name;
+            div.onclick = () => loadDoc(doc.id, div);
+            linkContainer.appendChild(div);
 
+            // Load the first one by default
+            if (index === 0) loadDoc(doc.id, div);
+        });
+
+        function loadDoc(id, element) {
+            // Update the iframe
+            // rm=minimal strips Google UI; #toolbar=0 is a backup lock
+            frame.src = id.split('?')[0] + '?rm=minimal';
+
+            // Highlight the active link
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        // 3. Security: Block Copy/Print shortcuts
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && ['c', 'p', 's', 'u'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+                alert("This content is protected.");
+            }
+        });
+    </script>
 </body>
 
 </html>
