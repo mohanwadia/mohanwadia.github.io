@@ -94,8 +94,8 @@
         const resources = [
             { name: "Study Design", id: "https://docs.google.com/document/d/1L5-2OdO_S_pARluJRRGfAcve8o_gFTZaHkkUz0YaCeM/edit?tab=t.0" },
             { name: "Notes + Practice Questions", id: "https://docs.google.com/presentation/d/1JwYaZbHxpzzbb4SJPoOP1stzht1H3Z64smgDsaVljKE/edit?slide=id.p#slide=id.p" },
-            {name: "Exam Notes (Old SD)", id: "https://docs.google.com/document/d/1k06JwlaaV-IGhBbCLNQ2GCqKxqSiWXKf_k59H3ZhSRs/edit?tab=t.0#heading=h.dk966y25cpzj"},
-            {name: "Full Content Notes (Old SD)", id: "https://docs.google.com/document/d/1me0kB_5sHv7ONWPddHmFeVf95LlsIiCENS29qhLm5I0/edit?tab=t.0#heading=h.t9azwdxprupl"}
+            { name: "Exam Notes (Old SD)", id: "https://docs.google.com/document/d/1k06JwlaaV-IGhBbCLNQ2GCqKxqSiWXKf_k59H3ZhSRs/edit?tab=t.0#heading=h.dk966y25cpzj" },
+            { name: "Full Content Notes (Old SD)", id: "https://docs.google.com/document/d/1me0kB_5sHv7ONWPddHmFeVf95LlsIiCENS29qhLm5I0/edit?tab=t.0#heading=h.t9azwdxprupl" }
             // ... Add all 20 here
         ];
 
@@ -122,6 +122,7 @@
             // Highlight the active link
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
+
         }
 
         // 3. Security: Block Copy/Print shortcuts
