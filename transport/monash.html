@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Monash Bus Loop PID</title>
+    <style>
+        body { background-color: #111; color: #fff; font-family: 'Courier New', monospace; padding: 20px; }
+        h1 { color: #ff9900; text-align: center; border-bottom: 2px solid #ff9900; padding-bottom: 10px; }
+        .pid-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
+        .destination-card { background: #222; border: 1px solid #444; padding: 15px; border-radius: 5px; }
+        .destination-name { color: #00ff00; font-size: 1.4rem; font-weight: bold; margin-bottom: 10px; }
+        .bus-line { display: flex; justify-content: space-between; font-size: 1.2rem; margin: 5px 0; }
+        .no-buses { color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h1>MONASH UNIVERSITY BUS LOOP</h1>
+    <div class="pid-grid" id="pid-board">
+        </div>
+
+    <script>
+        // Replace this with your actual Cloudflare Worker URL
+        const WORKER_URL = 'https://monash-bus-api.yoursubdomain.workers.dev';
+
+        async function updateBoard() {
+            try {
+                const response = await fetch(WORKER_URL);
+                const data = await response.json();
+                const board = document.getElementById('pid-board');
+                board.innerHTML = ''; // Clear old data
+
+                for (const [destination, buses] of Object.entries(data)) {
+                    let busRows = '';
+                    if (buses.length === 0) {
+                        busRows = '<div class="no-buses">No upcoming buses</div>';
+                    } else {
+                        buses.forEach(bus => {
+                            busRows += `<div class="bus-line"><span>Route ${bus.route}</span> <span>${bus.mins}</span></div>`;
+                        });
+                    }
+
+                    board.innerHTML += `
+                        <div class="destination-card">
+                            <div class="destination-name">${destination.toUpperCase()}</div>
+                            ${busRows}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error("Error updating PID board:", error);
+            }
+        }
+
+        // Fetch immediately on load, then refresh every 30 seconds
+        updateBoard();
+        setInterval(updateBoard, 30000);
+    </script>
+</body>
+</html>
