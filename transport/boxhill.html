@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buses from Box Hill to...</title>
+    <title>Box Hill Transport Interchange</title>
     <style>
         body {
             background-color: #ffffff;
@@ -49,23 +49,17 @@
         .column {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
             height: 100%;
         }
 
+        /* --- BUS/TRAM SECTION --- */
         .destination-row {
             border-bottom: 2px solid #b0b8bc;
             padding: 15px 5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-grow: 1;
             box-sizing: border-box;
-        }
-
-        /* Bottom axis formatting: remove line under the last row in the left column */
-        #doncaster-row {
-            border-bottom: none;
         }
 
         .destination-info {
@@ -79,13 +73,6 @@
             font-weight: bold;
             letter-spacing: -0.5px;
             line-height: 1.1;
-        }
-
-        .sub-via {
-            font-size: 1.3rem;
-            color: #555;
-            margin-top: 4px;
-            font-weight: 500;
         }
 
         .departures-stack {
@@ -117,168 +104,169 @@
             box-sizing: border-box;
         }
 
-        .route-rect {
-            background-color: #ff9900;
-            color: #1a1a1a;
-            width: 55px;
+        .route-rect { background-color: #ff9900; color: #1a1a1a; width: 55px; }
+        .bay-rect { background-color: #ffffff; color: #1a1a1a; border: 1px solid #b0b8bc; width: 45px; }
+        .time-rect { background-color: #1a1a1a; color: #ffffff; width: 90px; }
+
+        /* --- TRAM STYLING --- */
+        .tram-pid-section { margin-top: 20px; flex-grow: 1; }
+        .tram-accent-line { height: 8px; background-color: #81bc00; width: 100%; }
+        .tram-pid-header { color: #1a1a1a; font-size: 2.2rem; font-weight: bold; padding: 8px 0 10px 0; }
+        
+        .tram-service-row {
+            display: grid;
+            grid-template-columns: auto 85px 1fr 55px 95px;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .tram-accent-bar { width: 8px; height: 36px; background-color: #81bc00; margin-right: 12px; }
+        .tram-sched-time { font-size: 1.4rem; color: #555555; font-weight: 500; }
+        .tram-destination { font-size: 1.8rem; font-weight: bold; padding-left: 20px; }
+        
+        .tram-route-rect { 
+            background-color: #81bc00; 
+            color: #1a1a1a; 
+            width: 55px; 
+            height: 36px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: bold; 
+            font-size: 1.4rem; 
         }
 
-        .bay-rect {
-            background-color: #ffffff;
-            color: #1a1a1a;
-            border: 1px solid #b0b8bc;
-            width: 45px;
-        }
-
-        .time-rect {
+        .tram-realtime-box { 
             background-color: #1a1a1a; 
-            color: #ffffff;            
-            width: 90px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            color: #ffffff; 
+            font-size: 1.3rem; 
+            font-weight: bold; 
+            height: 36px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            width: 100%; 
+            margin-left: 6px; 
         }
 
-        .footer-container {
-            display: flex;
-            justify-content: center;
+        /* --- TRAIN STYLING --- */
+        .train-pid-section { margin-bottom: 25px; display: flex; flex-direction: column; flex-grow: 1; }
+        .train-top-accent-line { height: 8px; background-color: #002C6C; width: 100%; }
+        .train-pid-header { color: #1a1a1a; font-size: 2.2rem; font-weight: bold; padding: 8px 0 10px 0; }
+        .train-header-separator { border: none; border-top: 1px solid #1a1a1a; margin: 0; width: 100%; }
+        .train-pid-body { display: flex; flex-direction: column; flex-grow: 1; }
+        .train-service-row {
+            display: grid;
+            grid-template-columns: auto 85px 1fr 45px 95px;
             align-items: center;
-            padding: 15px 5px;
-            box-sizing: border-box;
-            flex-grow: 1;
+            padding: 14px 0;
+            border-bottom: 1px solid #1a1a1a;
         }
+        .train-accent-bar { width: 8px; height: 36px; background-color: #002C6C; margin-right: 12px; }
+        .train-sched-time { font-size: 1.4rem; color: #555555; font-weight: 500; }
+        .train-destination { font-size: 1.8rem; font-weight: bold; padding-left: 20px; }
+        .train-platform-box { background-color: #002C6C; color: #ffffff; font-size: 1.4rem; font-weight: bold; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+        .train-realtime-box { background-color: #1a1a1a; color: #ffffff; font-size: 1.3rem; font-weight: bold; height: 36px; display: flex; align-items: center; justify-content: center; width: 100%; }
 
-        footer {
-            font-size: 2.4rem;
-            font-weight: bold;
-            border: 1px solid #b0b8bc;
-            padding: 10px 0;
-            width: 90%;
-            text-align: center;
-            white-space: nowrap;
-            box-sizing: border-box;
-            background-color: #ffffff;
-        }
+        /* --- FOOTER --- */
+        .footer-container { display: flex; justify-content: center; align-items: center; margin-top: auto; }
+        footer { font-size: 2.4rem; font-weight: bold; border: 3px solid #1a1a1a; padding: 10px 0; width: 100%; text-align: center; }
     </style>
 </head>
 <body>
-
-    <header>Buses from Box Hill to</header>
+    <header>Box Hill Departures</header>
     <hr class="top-divider">
-
     <div class="pid-container">
         <div class="column">
             <div class="destination-row" id="chadstone-row"></div>
             <div class="destination-row" id="deakin-row"></div>
             <div class="destination-row" id="doncaster-row"></div>
+            
+            <div class="tram-pid-section">
+                <div class="tram-accent-line"></div>
+                <div class="tram-pid-header">Trams</div>
+                <div id="tram-container"></div>
+            </div>
         </div>
-        
         <div class="vertical-divider"></div>
-        
-        <div class="column" style="justify-content: flex-end;">
-            <div class="footer-container" style="flex-grow: 0;">
+        <div class="column">
+            <div class="train-pid-section">
+                <div class="train-top-accent-line"></div>
+                <div class="train-pid-header">Towards City</div>
+                <hr class="train-header-separator">
+                <div class="train-pid-body" id="city-trains-container"></div>
+            </div>
+            <div class="train-pid-section">
+                <div class="train-top-accent-line"></div>
+                <div class="train-pid-header">Towards Ringwood</div>
+                <hr class="train-header-separator">
+                <div class="train-pid-body" id="ringwood-trains-container"></div>
+            </div>
+            <div class="footer-container">
                 <footer id="live-clock">0:00:00 pm</footer>
             </div>
         </div>
     </div>
-
     <script>
-        const WORKER_URL = 'https://ptv.mohanwadia.workers.dev?interchange=boxhill';
+        const BASE_WORKER_URL = 'https://ptv.mohanwadia.workers.dev';
+        function escapeHtml(str) { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function generateDeparturesHtml(buses) {
-            let departuresHtml = '<div class="departures-stack">';
-            
-            // If there are no buses, generate 2 empty layout blocks
+        function generateBusHtml(buses) {
+            let html = '<div class="departures-stack">';
             if (!buses || buses.length === 0) {
-                for (let i = 0; i < 2; i++) {
-                    departuresHtml += `
-                        <div class="bus-block">
-                            <div class="rect route-rect">&nbsp;</div>
-                            <div class="rect bay-rect">&nbsp;</div>
-                            <div class="rect time-rect">—</div>
-                        </div>
-                    `;
-                }
+                for (let i = 0; i < 2; i++) html += `<div class="bus-block"><div class="rect route-rect">&nbsp;</div><div class="rect bay-rect">&nbsp;</div><div class="rect time-rect">—</div></div>`;
             } else {
-                buses.forEach(bus => {
-                    departuresHtml += `
-                        <div class="bus-block">
-                            <div class="rect route-rect">${escapeHtml(bus.route)}</div>
-                            <div class="rect bay-rect">${escapeHtml(bus.bay)}</div>
-                            <div class="rect time-rect">${escapeHtml(bus.mins)}</div>
-                        </div>
-                    `;
-                });
-                
-                // Optional: If there's only 1 bus active, pad the second slot with a blank row to keep size uniform
-                if (buses.length === 1) {
-                    departuresHtml += `
-                        <div class="bus-block">
-                            <div class="rect route-rect">&nbsp;</div>
-                            <div class="rect bay-rect">&nbsp;</div>
-                            <div class="rect time-rect">—</div>
-                        </div>
-                    `;
-                }
+                buses.forEach(bus => html += `<div class="bus-block"><div class="rect route-rect">${escapeHtml(bus.route)}</div><div class="rect bay-rect">${escapeHtml(bus.bay)}</div><div class="rect time-rect">${escapeHtml(bus.mins)}</div></div>`);
             }
-            
-            departuresHtml += '</div>';
-            return departuresHtml;
+            return html + '</div>';
         }
 
-        function populateRowContent(name, subVia, buses) {
-            return `
-                <div class="destination-info">
-                    <div class="destination-name">${escapeHtml(name)}</div>
-                    ${subVia ? `<div class="sub-via">${escapeHtml(subVia)}</div>` : ''}
-                </div>
-                ${generateDeparturesHtml(buses)}
-            `;
+        function generateTramHtml(trams) {
+            let html = '';
+            trams.forEach(tram => {
+                html += `
+                    <div class="tram-service-row">
+                        <div class="tram-accent-bar"></div>
+                        <div class="tram-sched-time">${escapeHtml(tram.schedTime)}</div>
+                        <div class="tram-destination">${escapeHtml(tram.route)}</div>
+                        <div class="tram-route-rect">109</div>
+                        <div class="tram-realtime-box">${escapeHtml(tram.mins)}</div>
+                    </div>`;
+            });
+            return html;
         }
 
         async function updateBoard() {
+            const timestamp = Date.now().toString();
             try {
-                const cacheBusterUrl = `${WORKER_URL}&_ts=${Date.now()}`;
-                const response = await fetch(cacheBusterUrl);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const trainResponse = await fetch(`${BASE_WORKER_URL}?interchange=boxhilltrains&_ts=${timestamp}`);
+                const trainData = await trainResponse.json();
+                document.getElementById('city-trains-container').innerHTML = generateTrainPidHtml(trainData.City);
+                document.getElementById('ringwood-trains-container').innerHTML = generateTrainPidHtml(trainData.Ringwood);
                 
-                const data = await response.json();
-
-                document.getElementById('chadstone-row').innerHTML = populateRowContent('Chadstone', null, data.Chadstone);
-                document.getElementById('deakin-row').innerHTML = populateRowContent('Deakin Uni', null, data.Deakin);
-                document.getElementById('doncaster-row').innerHTML = populateRowContent('Doncaster', null, data.Doncaster);
-
-            } catch (error) {
-                console.error("Error fetching data from worker:", error);
-            }
+                const busResponse = await fetch(`${BASE_WORKER_URL}?interchange=boxhillbuses&_ts=${timestamp}`);
+                const busData = await busResponse.json();
+                document.getElementById('chadstone-row').innerHTML = `<div class="destination-info"><div class="destination-name">Chadstone</div></div>${generateBusHtml(busData.Chadstone)}`;
+                document.getElementById('deakin-row').innerHTML = `<div class="destination-info"><div class="destination-name">Deakin Uni</div></div>${generateBusHtml(busData.Deakin)}`;
+                document.getElementById('doncaster-row').innerHTML = `<div class="destination-info"><div class="destination-name">Doncaster</div></div>${generateBusHtml(busData.Doncaster)}`;
+                
+                const tramResponse = await fetch(`${BASE_WORKER_URL}?interchange=boxhilltrams&_ts=${timestamp}`);
+                const tramData = await tramResponse.json();
+                document.getElementById('tram-container').innerHTML = generateTramHtml(tramData.Trams);
+            } catch (e) { console.error(e); }
         }
 
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('live-clock').textContent = now.toLocaleTimeString('en-AU', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-            }).toLowerCase();
+        function generateTrainPidHtml(trains) {
+            let html = '';
+            trains.forEach(train => {
+                html += `<div class="train-service-row"><div class="train-accent-bar"></div><div class="train-sched-time">${escapeHtml(train.schedTime)}</div><div class="train-destination">${escapeHtml(train.route)}</div><div class="train-platform-box">${escapeHtml(train.platform)}</div><div class="train-realtime-box">${escapeHtml(train.mins)}</div></div>`;
+            });
+            return html;
         }
 
-        // Initialize and setup loops
-        updateBoard();
-        setInterval(updateBoard, 30000);
-
-        updateClock();
-        setInterval(updateClock, 1000);
+        function updateClock() { document.getElementById('live-clock').textContent = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toLowerCase(); }
+        updateBoard(); setInterval(updateBoard, 30000);
+        updateClock(); setInterval(updateClock, 1000);
     </script>
 </body>
 </html>
