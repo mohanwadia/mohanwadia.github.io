@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Buses from Monash Uni to...</title>
     <style>
-        /* Base Metro-style Screen Foundation */
         body {
-            background-color: #d8dee2; /* Station screen grey */
+            background-color: #ffffff;
             color: #1a1a1a;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             margin: 0;
@@ -18,7 +17,6 @@
             flex-direction: column;
         }
 
-        /* Top Header Board */
         header {
             font-size: 2.8rem;
             font-weight: 500;
@@ -26,39 +24,50 @@
             padding-bottom: 15px;
         }
 
-        /* Metro-style Top Horizontal Divider */
         .top-divider {
-            border: 0;
-            height: 3px;
-            background-color: #5d6b73;
+            border: none;
+            border-top: 6px solid #000000;
+            height: 0;
             margin: 0 0 25px 0;
+            flex-shrink: 0;
         }
 
-        /* Main Screen Split (Two columns left/right) */
         .pid-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 50px;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0;
             flex-grow: 1;
+        }
+
+        .vertical-divider {
+            width: 2px;
+            background-color: #b0b8bc;
+            margin: 0 25px;
+            align-self: stretch;
         }
 
         .column {
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
         }
 
-        /* Destination Row Box */
         .destination-row {
             border-bottom: 2px solid #b0b8bc;
             padding: 15px 5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            min-height: 120px;
+            flex-grow: 1;
             box-sizing: border-box;
         }
 
-        /* Left Side: Text Data */
+        /* Clayton row is the last child in the left column; remove its line */
+        #left-col-inner .destination-row:last-child {
+            border-bottom: none;
+        }
+
         .destination-info {
             display: flex;
             flex-direction: column;
@@ -79,28 +88,24 @@
             font-weight: 500;
         }
 
-        /* Right Side: Stacked Vertical Departures */
         .departures-stack {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            width: 210px; /* Forces uniform alignment width across different rows */
+            width: 210px;
         }
 
-        /* Complete Detached Row Wrapper */
         .bus-block {
             display: flex;
-            gap: 6px; /* Explicit gap between the elements */
+            gap: 6px;
             width: 100%;
             padding: 6px 0;
         }
 
-        /* Thin horizontal divider separating individual bus departures within the same stack */
         .bus-block:not(:last-child) {
             border-bottom: 1px solid #b0b8bc;
         }
 
-        /* Individual Rectangle Base Properties (Strictly No Rounded Corners) */
         .rect {
             font-size: 1.4rem;
             font-weight: bold;
@@ -108,18 +113,16 @@
             align-items: center;
             justify-content: center;
             height: 42px;
-            border-radius: 0px; /* No rounded corners */
+            border-radius: 0px;
             box-sizing: border-box;
         }
 
-        /* Block 1: Route Identifier tag (Orange Background) */
         .route-rect {
-            background-color: #ff9900; /* Distinct crisp orange */
-            color: #1a1a1a;            /* High contrast dark text */
+            background-color: #ff9900;
+            color: #1a1a1a;
             width: 55px;
         }
 
-        /* Block 2: Platform/Bay Badge */
         .bay-rect {
             background-color: #ffffff;
             color: #1a1a1a;
@@ -127,21 +130,10 @@
             width: 45px;
         }
 
-        /* Block 3: Countdown Element (Solid Black Background) */
         .time-rect {
             background-color: #1a1a1a; 
             color: #ffffff;            
             width: 90px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Thin lined internal text container nested inside the time block */
-        .time-border-inner {
-            border: 1px solid #ffffff; /* Thin crisp interior border */
-            width: calc(100% - 6px);
-            height: calc(100% - 6px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -154,13 +146,25 @@
             padding-right: 20px;
         }
 
-        /* Station Screen Digital Clock */
+        .footer-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px 5px;
+            box-sizing: border-box;
+            flex-grow: 1;
+        }
+
         footer {
-            text-align: right;
             font-size: 2.4rem;
             font-weight: bold;
-            padding-top: 20px;
-            margin-top: auto;
+            border: 1px solid #b0b8bc;
+            padding: 10px 0;
+            width: 90%;
+            text-align: center;
+            white-space: nowrap;
+            box-sizing: border-box;
+            background-color: #ffffff;
         }
     </style>
 </head>
@@ -170,24 +174,26 @@
     <hr class="top-divider">
 
     <div class="pid-container">
-        <div class="column" id="left-col"></div>
-
-        <div class="column" id="right-col"></div>
+        <div class="column" id="left-col-inner"></div>
+        <div class="vertical-divider"></div>
+        <div class="column">
+            <div class="destination-row" id="syndal-row"></div>
+            <div class="destination-row" id="dandenong-row"></div>
+            <div class="footer-container">
+                <footer id="live-clock">0:00:00 pm</footer>
+            </div>
+        </div>
     </div>
-
-    <footer id="live-clock">0:00:00 pm</footer>
 
     <script>
         const WORKER_URL = 'https://ptv.mohanwadia.workers.dev';
 
-        // Generates the structure for a destination and its departures
-        function generateRowHtml(name, subVia, buses) {
+        function generateDeparturesHtml(buses) {
             let departuresHtml = '';
-            
             if (!buses || buses.length === 0) {
-                departuresHtml = '<div class="no-services">No services filtering</div>';
-            } else {
-                departuresHtml = '<div class="departures-stack">';
+                return '<div class="no-services">No services filtering</div>';
+            }
+            departuresHtml = '<div class="departures-stack">';
             buses.forEach(bus => {
                 departuresHtml += `
                     <div class="bus-block">
@@ -197,17 +203,17 @@
                     </div>
                 `;
             });
-                departuresHtml += '</div>';
-            }
+            departuresHtml += '</div>';
+            return departuresHtml;
+        }
 
+        function populateRowContent(name, subVia, buses) {
             return `
-                <div class="destination-row">
-                    <div class="destination-info">
-                        <div class="destination-name">${name}</div>
-                        ${subVia ? `<div class="sub-via">${subVia}</div>` : ''}
-                    </div>
-                    ${departuresHtml}
+                <div class="destination-info">
+                    <div class="destination-name">${name}</div>
+                    ${subVia ? `<div class="sub-via">${subVia}</div>` : ''}
                 </div>
+                ${generateDeparturesHtml(buses)}
             `;
         }
 
@@ -216,19 +222,17 @@
                 const response = await fetch(WORKER_URL);
                 const data = await response.json();
 
-                const leftCol = document.getElementById('left-col');
-                const rightCol = document.getElementById('right-col');
+                const leftCol = document.getElementById('left-col-inner');
+                const syndalRow = document.getElementById('syndal-row');
+                const dandenongRow = document.getElementById('dandenong-row');
 
-                // Render Left Columns
                 leftCol.innerHTML = 
-                    generateRowHtml('Chadstone', 'Via Oakleigh', data.Chadstone) +
-                    generateRowHtml('Huntingdale', null, data.Huntingdale) +
-                    generateRowHtml('Clayton', null, data.Clayton);
+                    `<div class="destination-row">${populateRowContent('Chadstone', 'Via Oakleigh', data.Chadstone)}</div>` +
+                    `<div class="destination-row">${populateRowContent('Huntingdale', null, data.Huntingdale)}</div>` +
+                    `<div class="destination-row">${populateRowContent('Clayton', null, data.Clayton)}</div>`;
 
-                // Render Right Columns
-                rightCol.innerHTML = 
-                    generateRowHtml('Syndal', null, data.Syndal) +
-                    generateRowHtml('Dandenong', null, data.Dandenong);
+                syndalRow.innerHTML = populateRowContent('Syndal', null, data.Syndal);
+                dandenongRow.innerHTML = populateRowContent('Dandenong', null, data.Dandenong);
 
             } catch (error) {
                 console.error("Error fetching data from worker:", error);
@@ -245,7 +249,6 @@
             }).toLowerCase();
         }
 
-        // Loop Triggers
         updateBoard();
         setInterval(updateBoard, 30000);
 
