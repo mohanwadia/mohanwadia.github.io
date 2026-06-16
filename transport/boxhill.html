@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buses from Box Hill to...</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 25px;
+            box-sizing: border-box;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            font-size: 2.8rem;
+            font-weight: 500;
+            letter-spacing: -0.5px;
+            padding-bottom: 15px;
+        }
+
+        .top-divider {
+            border: none;
+            border-top: 6px solid #000000;
+            height: 0;
+            margin: 0 0 25px 0;
+            flex-shrink: 0;
+        }
+
+        .pid-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0;
+            flex-grow: 1;
+        }
+
+        .vertical-divider {
+            width: 2px;
+            background-color: #b0b8bc;
+            margin: 0 25px;
+            align-self: stretch;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+        }
+
+        .destination-row {
+            border-bottom: 2px solid #b0b8bc;
+            padding: 15px 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
+
+        /* Bottom axis formatting: remove line under the last row in the left column */
+        #doncaster-row {
+            border-bottom: none;
+        }
+
+        .destination-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .destination-name {
+            font-size: 2.5rem;
+            font-weight: bold;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+        }
+
+        .sub-via {
+            font-size: 1.3rem;
+            color: #555;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .departures-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            width: 210px;
+        }
+
+        .bus-block {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            padding: 6px 0;
+        }
+
+        .bus-block:not(:last-child) {
+            border-bottom: 1px solid #b0b8bc;
+        }
+
+        .rect {
+            font-size: 1.4rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 42px;
+            border-radius: 0px;
+            box-sizing: border-box;
+        }
+
+        .route-rect {
+            background-color: #ff9900;
+            color: #1a1a1a;
+            width: 55px;
+        }
+
+        .bay-rect {
+            background-color: #ffffff;
+            color: #1a1a1a;
+            border: 1px solid #b0b8bc;
+            width: 45px;
+        }
+
+        .time-rect {
+            background-color: #1a1a1a; 
+            color: #ffffff;            
+            width: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .footer-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px 5px;
+            box-sizing: border-box;
+            flex-grow: 1;
+        }
+
+        footer {
+            font-size: 2.4rem;
+            font-weight: bold;
+            border: 1px solid #b0b8bc;
+            padding: 10px 0;
+            width: 90%;
+            text-align: center;
+            white-space: nowrap;
+            box-sizing: border-box;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <header>Buses from Box Hill to</header>
+    <hr class="top-divider">
+
+    <div class="pid-container">
+        <div class="column">
+            <div class="destination-row" id="chadstone-row"></div>
+            <div class="destination-row" id="deakin-row"></div>
+            <div class="destination-row" id="doncaster-row"></div>
+        </div>
+        
+        <div class="vertical-divider"></div>
+        
+        <div class="column" style="justify-content: flex-end;">
+            <div class="footer-container" style="flex-grow: 0;">
+                <footer id="live-clock">0:00:00 pm</footer>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WORKER_URL = 'https://ptv.mohanwadia.workers.dev?interchange=boxhill';
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function generateDeparturesHtml(buses) {
+            let departuresHtml = '<div class="departures-stack">';
+            
+            // If there are no buses, generate 2 empty layout blocks
+            if (!buses || buses.length === 0) {
+                for (let i = 0; i < 2; i++) {
+                    departuresHtml += `
+                        <div class="bus-block">
+                            <div class="rect route-rect">&nbsp;</div>
+                            <div class="rect bay-rect">&nbsp;</div>
+                            <div class="rect time-rect">—</div>
+                        </div>
+                    `;
+                }
+            } else {
+                buses.forEach(bus => {
+                    departuresHtml += `
+                        <div class="bus-block">
+                            <div class="rect route-rect">${escapeHtml(bus.route)}</div>
+                            <div class="rect bay-rect">${escapeHtml(bus.bay)}</div>
+                            <div class="rect time-rect">${escapeHtml(bus.mins)}</div>
+                        </div>
+                    `;
+                });
+                
+                // Optional: If there's only 1 bus active, pad the second slot with a blank row to keep size uniform
+                if (buses.length === 1) {
+                    departuresHtml += `
+                        <div class="bus-block">
+                            <div class="rect route-rect">&nbsp;</div>
+                            <div class="rect bay-rect">&nbsp;</div>
+                            <div class="rect time-rect">—</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            departuresHtml += '</div>';
+            return departuresHtml;
+        }
+
+        function populateRowContent(name, subVia, buses) {
+            return `
+                <div class="destination-info">
+                    <div class="destination-name">${escapeHtml(name)}</div>
+                    ${subVia ? `<div class="sub-via">${escapeHtml(subVia)}</div>` : ''}
+                </div>
+                ${generateDeparturesHtml(buses)}
+            `;
+        }
+
+        async function updateBoard() {
+            try {
+                const cacheBusterUrl = `${WORKER_URL}&_ts=${Date.now()}`;
+                const response = await fetch(cacheBusterUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+
+                document.getElementById('chadstone-row').innerHTML = populateRowContent('Chadstone', null, data.Chadstone);
+                document.getElementById('deakin-row').innerHTML = populateRowContent('Deakin Uni', null, data.Deakin);
+                document.getElementById('doncaster-row').innerHTML = populateRowContent('Doncaster', null, data.Doncaster);
+
+            } catch (error) {
+                console.error("Error fetching data from worker:", error);
+            }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-clock').textContent = now.toLocaleTimeString('en-AU', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            }).toLowerCase();
+        }
+
+        // Initialize and setup loops
+        updateBoard();
+        setInterval(updateBoard, 30000);
+
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
