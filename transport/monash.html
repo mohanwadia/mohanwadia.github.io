@@ -174,8 +174,14 @@
     <hr class="top-divider">
 
     <div class="pid-container">
-        <div class="column" id="left-col-inner"></div>
+        <div class="column" id="left-col-inner">
+            <div class="destination-row" id="chadstone-row"></div>
+            <div class="destination-row" id="huntingdale-row"></div>
+            <div class="destination-row" id="clayton-row"></div>
+        </div>
+        
         <div class="vertical-divider"></div>
+        
         <div class="column">
             <div class="destination-row" id="syndal-row"></div>
             <div class="destination-row" id="dandenong-row"></div>
@@ -188,18 +194,28 @@
     <script>
         const WORKER_URL = 'https://ptv.mohanwadia.workers.dev';
 
+        // Helper to safely escape HTML entities to prevent XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function generateDeparturesHtml(buses) {
-            let departuresHtml = '';
             if (!buses || buses.length === 0) {
                 return '<div class="no-services">No services filtering</div>';
             }
-            departuresHtml = '<div class="departures-stack">';
+            let departuresHtml = '<div class="departures-stack">';
             buses.forEach(bus => {
                 departuresHtml += `
                     <div class="bus-block">
-                        <div class="rect route-rect">${bus.route}</div>
-                        <div class="rect bay-rect">${bus.bay}</div>
-                        <div class="rect time-rect">${bus.mins}</div>
+                        <div class="rect route-rect">${escapeHtml(bus.route)}</div>
+                        <div class="rect bay-rect">${escapeHtml(bus.bay)}</div>
+                        <div class="rect time-rect">${escapeHtml(bus.mins)}</div>
                     </div>
                 `;
             });
@@ -210,8 +226,8 @@
         function populateRowContent(name, subVia, buses) {
             return `
                 <div class="destination-info">
-                    <div class="destination-name">${name}</div>
-                    ${subVia ? `<div class="sub-via">${subVia}</div>` : ''}
+                    <div class="destination-name">${escapeHtml(name)}</div>
+                    ${subVia ? `<div class="sub-via">${escapeHtml(subVia)}</div>` : ''}
                 </div>
                 ${generateDeparturesHtml(buses)}
             `;
@@ -220,28 +236,27 @@
         async function updateBoard() {
             try {
                 const response = await fetch(WORKER_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
                 const data = await response.json();
 
-                const leftCol = document.getElementById('left-col-inner');
-                const syndalRow = document.getElementById('syndal-row');
-                const dandenongRow = document.getElementById('dandenong-row');
-
-                leftCol.innerHTML = 
-                    `<div class="destination-row">${populateRowContent('Chadstone', 'Via Oakleigh', data.Chadstone)}</div>` +
-                    `<div class="destination-row">${populateRowContent('Huntingdale', null, data.Huntingdale)}</div>` +
-                    `<div class="destination-row">${populateRowContent('Clayton', null, data.Clayton)}</div>`;
-
-                syndalRow.innerHTML = populateRowContent('Syndal', null, data.Syndal);
-                dandenongRow.innerHTML = populateRowContent('Dandenong', null, data.Dandenong);
+                // Directly assign to the persistent container elements
+                document.getElementById('chadstone-row').innerHTML = populateRowContent('Chadstone', 'Via Oakleigh', data.Chadstone);
+                document.getElementById('huntingdale-row').innerHTML = populateRowContent('Huntingdale', null, data.Huntingdale);
+                document.getElementById('clayton-row').innerHTML = populateRowContent('Clayton', null, data.Clayton);
+                document.getElementById('syndal-row').innerHTML = populateRowContent('Syndal', null, data.Syndal);
+                document.getElementById('dandenong-row').innerHTML = populateRowContent('Dandenong', null, data.Dandenong);
 
             } catch (error) {
                 console.error("Error fetching data from worker:", error);
+                // Optional: You could show an "Offline" badge on the UI if a fetch fails 3 times in a row
             }
         }
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('live-clock').innerText = now.toLocaleTimeString('en-AU', {
+            // Using textContent instead of innerText for a tiny performance boost
+            document.getElementById('live-clock').textContent = now.toLocaleTimeString('en-AU', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
@@ -249,6 +264,7 @@
             }).toLowerCase();
         }
 
+        // Initialize and setup loops
         updateBoard();
         setInterval(updateBoard, 30000);
 
