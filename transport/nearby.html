@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melbourne Transport Stop PDF Generator</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background-color: #f8f9fa; color: #333; }
+        h2 { color: #004685; margin-bottom: 20px; border-bottom: 2px solid #004685; padding-bottom: 8px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 15px; }
+        button { background: #004685; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; transition: background 0.2s; }
+        button:hover { background: #002d57; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status { margin-top: 15px; color: #555; font-style: italic; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <h2>Transit Stop PDF Generator</h2>
+    
+    <div class="form-group">
+        <label for="lat">Latitude:</label>
+        <input type="number" id="lat" value="-37.920303" step="any">
+    </div>
+    <div class="form-group">
+        <label for="lon">Longitude:</label>
+        <input type="number" id="lon" value="145.158681" step="any">
+    </div>
+    <button id="generateBtn">Generate Professional Report</button>
+    
+    <div id="status"></div>
+
+    <script>
+        // Mapping route short numbers to their static description text from the Python script
+        const viaData = {
+            '902': 'Springvale RS, Glen Waverley RS, Nunawading RS, Doncaster SC, Eltham RS, Keon Park RS, Broadmeadows RS',
+            '733': 'Clayton RS, Monash Uni, Mount Waverley RS',
+            '850': 'Waverley Gardens SC, Brandon Park SC',
+            '848': 'Waverley Gardens SC',
+            '734': 'High Street Rd',
+            '704': 'Clayton RS, Huntingdale RS',
+            '804': 'Wheelers Hill SC, Monash Uni, Oakleigh RS',
+            '631': 'Monash Uni, Clayton RS',
+            '900': 'Monash Uni, Huntingdale RS, Oakleigh RS, Chadstone SC',
+            '736': 'Glen Waverley RS, Forest Hill SC',
+            '742': 'Glen Waverley RS and Oakleigh RS with Monash Uni deviation',
+            '601': 'North Rd as a Shuttle',
+            '824': 'Clayton RS',
+            '701': 'Mackie Road, Brady Road',
+            '802': 'Monash Uni, Oakleigh RS',
+            '754': 'Wheelers Hill SC'
+        };
+
+        // --- Ported from the notebook: minutes_to_12hr / get_freq_label / get_span_label ---
+
+        function minutesTo12hr(totalMinutes) {
+            totalMinutes = ((totalMinutes % 1440) + 1440) % 1440;
+            const hours = Math.floor(totalMinutes / 60);
+            const period = hours < 12 ? 'am' : 'pm';
+            let hours12 = hours % 12;
+            if (hours12 === 0) hours12 = 12;
+            return `${hours12}${period}`;
+        }
+
+        function isNullish(value) {
+            return value === null || value === undefined || value === 'null';
+        }
+
+        function roundFreq(value) {
+            if (value >= 35) return 10 * Math.round(value / 10);
+            if (value >= 15) return 5 * Math.round(value / 5);
+            return Math.round(value);
+        }
+
+        function getFreqLabel(frequencyData, routeShortName) {
+            const entry = frequencyData[String(routeShortName)];
+            const freqData = entry && entry.frequency_summary;
+            if (!freqData) return 'Frequency: Not Found';
+
+            const days = ['Mon', 'Sat', 'Sun'];
+            let label = 'Frequency: ';
+            for (let i = 0; i < 3; i++) {
+                if (i !== 0) label += ' | ';
+                const dayData = freqData[i];
+                label += `${days[i]} `;
+
+                if (isNullish(dayData.morning) && isNullish(dayData.daytime) && isNullish(dayData.evening)) {
+                    label += 'N/A';
+                    continue;
+                }
+
+                const dataList = [dayData.morning, dayData.daytime].filter((t) => !isNullish(t));
+                if (dataList.length === 0) {
+                    label += 'N/A';
+                    continue;
+                }
+
+                let minFreq = Math.min(...dataList);
+                let maxFreq = Math.max(...dataList);
+                let avgFreq = (minFreq + maxFreq) / 2;
+
+                minFreq = roundFreq(minFreq);
+                maxFreq = roundFreq(maxFreq);
+                avgFreq = roundFreq(avgFreq);
+
+                if (maxFreq < 15) {
+                    label += (maxFreq - minFreq < 5) ? `${avgFreq.toFixed(0)}m` : `${minFreq.toFixed(0)}-${maxFreq.toFixed(0)}m`;
+                    continue;
+                }
+                if (maxFreq - minFreq < 5) { label += `${avgFreq.toFixed(0)}m`; continue; }
+                if (minFreq < 35) { label += `${minFreq.toFixed(0)}-${maxFreq.toFixed(0)}m`; continue; }
+                if (maxFreq - minFreq < 10) { label += `${avgFreq.toFixed(0)}m`; continue; }
+                label += `${minFreq.toFixed(0)}-${maxFreq.toFixed(0)}m`;
+            }
+            return label;
+        }
+
+        function getSpanLabel(frequencyData, routeShortName) {
+            const entry = frequencyData[String(routeShortName)];
+            const spanData = entry && entry.span_stats;
+            if (!spanData) return 'Span: Not Found';
+
+            const days = ['Mon', '', '', '', 'Fri', 'Sat', 'Sun'];
+            let label = 'Span: ';
+            [0, 5, 6].forEach((i, idx) => {
+                if (idx !== 0) label += ' | ';
+                label += `${days[i]} `;
+                const dayStats = spanData[i];
+                if (!dayStats || isNullish(dayStats.span_start) || isNullish(dayStats.span_end)) {
+                    label += 'N/A';
+                    return;
+                }
+                const firstServiceHour = Math.ceil(dayStats.span_start / 60);
+                const lastServiceHour = Math.floor(dayStats.span_end / 60);
+                label += `${minutesTo12hr(firstServiceHour * 60)}-${minutesTo12hr(lastServiceHour * 60)}`;
+            });
+            return label;
+        }
+
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const lat = parseFloat(document.getElementById('lat').value);
+            const lon = parseFloat(document.getElementById('lon').value);
+            const statusDiv = document.getElementById('status');
+            const btn = document.getElementById('generateBtn');
+            
+            btn.disabled = true;
+            statusDiv.innerText = "Fetching transit data...";
+
+            try {
+                // 1. Fetch data from the Cloudflare Worker API
+                const radius = 600;
+                const response = await fetch(`https://nearest-stops.mohanwadia.workers.dev/?lat=${lat}&lon=${lon}&radius=${radius}`);
+                if (!response.ok) throw new Error('Worker API failed to reply.');
+                const data = await response.json();
+
+                statusDiv.innerText = "Fetching real frequency & span data...";
+
+                // Real per-route headway/operating-hours data, same source the
+                // original notebook used. Open CORS, so we can fetch it directly.
+                let frequencyData = {};
+                try {
+                    const freqResponse = await fetch('https://raw.githubusercontent.com/adambain014/FrequencyFinder/main/route_jsons/summary.json');
+                    if (freqResponse.ok) {
+                        frequencyData = await freqResponse.json();
+                    }
+                } catch (freqError) {
+                    console.warn('Could not load frequency data, falling back to "Not Found" labels:', freqError);
+                }
+
+                statusDiv.innerText = "Constructing professional layout configuration...";
+                
+                // 2. Initialize pdf-lib
+                const { PDFDocument, StandardFonts, rgb } = PDFLib;
+                const pdfDoc = await PDFDocument.create();
+                
+                // A4 dimensions are 595 x 842 points. 
+                // Notice: In pdf-lib, coordinate (0,0) is at the BOTTOM LEFT of the page.
+                const page = pdfDoc.addPage([595, 842]); 
+                const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+                // Helper to normalize 0-255 RGB values to 0.0 - 1.0 needed by pdf-lib
+                const ptvColor = (r, g, b) => rgb(r / 255, g / 255, b / 255);
+
+                // The worker already deduplicates: `data.routes` is one entry per unique
+                // route number, pointing at that route's single nearest stop, sorted by
+                // distance ascending. This is what we render — not the raw stop list.
+                const routes = data.routes ?? [];
+
+                // 3. Render Top Metadata Boxes (Box 1 and Box 2)
+                // Python coordinates translation layer:
+                // Python Y=25 (from top) translates roughly to pdf-lib Y = 842 - 25 - height
+                
+                // Box 1 (Left Side: Transport Coverage Metrics)
+                page.drawRectangle({
+                    x: 10,
+                    y: 842 - 25 - 78,
+                    width: 90,
+                    height: 78,
+                    borderWidth: 0.5,
+                    borderColor: rgb(0, 0, 0)
+                });
+                page.drawText(`Transport Coverage\nWithin ${radius}m`, {
+                    x: 15,
+                    y: 842 - 25 - 25,
+                    size: 9,
+                    font: boldFont,
+                    lineHeight: 12
+                });
+                page.drawText(`Total Routes: ${routes.length}`, {
+                    x: 15,
+                    y: 842 - 25 - 60,
+                    size: 8,
+                    font
+                });
+
+                // Box 2 (Right Side: Closest Location Heading Box)
+                page.drawRectangle({
+                    x: 110,
+                    y: 842 - 25 - 78,
+                    width: 90,
+                    height: 78,
+                    borderWidth: 0.5,
+                    borderColor: rgb(0, 0, 0)
+                });
+                page.drawText("Your Closest Stop\nLocation For Each\nRoute", {
+                    x: 115,
+                    y: 842 - 25 - 25,
+                    size: 9,
+                    font: boldFont,
+                    lineHeight: 12
+                });
+
+                // Horizontal dividing rules matching Python layout logic
+                page.drawLine({
+                    start: { x: 10, y: 842 - 100 },
+                    end: { x: 585, y: 842 - 100 },
+                    thickness: 0.25,
+                    color: rgb(0, 0, 0)
+                });
+
+                // 4. Render Grid of Routes (Max 10 entries as capped by Python logic)
+                const maxItems = Math.min(routes.length, 10);
+                
+                for (let i = 0; i < maxItems; i++) {
+                    const route = routes[i];
+                    const routeType = route.type ?? 2; // default to Bus if missing
+                    const routeShortName = route.number || 'N/A';
+
+                    // Calculate Grid Coordinate logic derived directly from Python script
+                    // x_off = 10 + 100 * (i % 2) -> scaled up slightly for A4 width padding
+                    // Row pitch widened from 65 to 92 to fit the added route-name and span lines.
+                    const x_off = 10 + 290 * (i % 2);
+                    const y_off = 842 - (115 + 92 * Math.floor(i / 2));
+
+                    // PTV Timetable API route_type codes: 0 = Train, 1 = Tram, 2 = Bus,
+                    // 3 = V/Line, 4 = Night Bus. Default to the Bus styling for anything
+                    // we don't explicitly recognise (incl. Night Bus).
+                    let rColor = ptvColor(255, 130, 0);   // Bus = Orange
+                    let modeLetter = 'B';
+                    if (routeType === 0) {
+                        rColor = ptvColor(0, 80, 133);    // Train = Blue
+                        modeLetter = 'T';
+                    } else if (routeType === 1) {
+                        rColor = ptvColor(0, 150, 57);    // Tram = Green
+                        modeLetter = 'M';
+                    } else if (routeType === 3) {
+                        rColor = ptvColor(116, 0, 184);   // V/Line = Purple
+                        modeLetter = 'V';
+                    }
+
+                    // Vector Icon Drawing Replacement: Draw a clean circle badge representing transit mode
+                    
+                    
+                    // Draw localized short mode character indicators inside the badges
+                    page.drawText(modeLetter, {
+                        x: x_off + 8,
+                        y: y_off - 16,
+                        size: 11,
+                        font: boldFont,
+                        color: rgb(1, 1, 1)
+                    });
+
+                    // 1. Calculate Badge Dimensions & Draw Text
+                    // Target specific dynamic route badge background
+                    page.drawRectangle({
+                        x: x_off + 35,
+                        y: y_off - 18,
+                        width: 32,
+                        height: 16,
+                        color: rColor
+                    });
+                    page.drawText(routeShortName, {
+                        x: x_off + 39,
+                        y: y_off - 15,
+                        size: 10,
+                        font: boldFont,
+                        color: rgb(1, 1, 1)
+                    });
+
+                    // Distance text string representation
+                    page.drawText(`${Math.round(route.distance_metres ?? 0)}m away`, {
+                        x: x_off + 75,
+                        y: y_off - 14,
+                        size: 10,
+                        font: boldFont,
+                        color: rgb(0, 0, 0)
+                    });
+
+                    // Route long name (e.g. "Glen Waverley - Springvale via Wanda Street"),
+                    // colour-matched to the mode badge, same as the notebook's PDF.
+                    let routeLongName = route.name || '';
+                    const maxNameChars = 60;
+                    if (routeLongName.length > maxNameChars) {
+                        routeLongName = routeLongName.slice(0, maxNameChars - 3) + '...';
+                    }
+                    page.drawText(routeLongName, {
+                        x: x_off + 10,
+                        y: y_off - 28,
+                        size: 8.5,
+                        font: boldFont,
+                        color: rColor
+                    });
+
+                    // Stop Destination / Origin subtitle
+                    page.drawText(`Departs from ${route.stop_name}`, {
+                        x: x_off + 10,
+                        y: y_off - 41,
+                        size: 8.5,
+                        font: font,
+                        color: rgb(0.2, 0.2, 0.2)
+                    });
+
+                    // "Via" Description compilation block (pulls local route static mapping)
+                    let viaLabel = `Via: ${viaData[routeShortName] || 'Local Coverage Area Details'}`;
+                    if (viaLabel.length > 55) {
+                        viaLabel = viaLabel.substring(0, 52) + '...';
+                    }
+                    
+                    // Small operating context icon alternative placeholders (Drawn using simple vector marks)
+                    //page.drawCircle({ x: x_off + 12, y: y_off - 51, radius: 2, color: rgb(0.4, 0.4, 0.4) });
+                    page.drawText(viaLabel, {
+                        x: x_off + 20,
+                        y: y_off - 54,
+                        size: 8,
+                        font: font,
+                        color: rgb(0.3, 0.3, 0.3)
+                    });
+
+                    // Real frequency label, pulled from the FrequencyFinder dataset
+                    // instead of the old "Standard Service Intervals Apply" placeholder.
+                    //page.drawCircle({ x: x_off + 12, y: y_off - 64, radius: 2, color: rgb(0.4, 0.4, 0.4) });
+                    page.drawText(getFreqLabel(frequencyData, routeShortName), {
+                        x: x_off + 20,
+                        y: y_off - 67,
+                        size: 8,
+                        font: font,
+                        color: rgb(0.3, 0.3, 0.3)
+                    });
+
+                    // Real span label (operating hours), previously missing entirely.
+                    //page.drawCircle({ x: x_off + 12, y: y_off - 77, radius: 2, color: rgb(0.4, 0.4, 0.4) });
+                    page.drawText(getSpanLabel(frequencyData, routeShortName), {
+                        x: x_off + 20,
+                        y: y_off - 80,
+                        size: 8,
+                        font: font,
+                        color: rgb(0.3, 0.3, 0.3)
+                    });
+                }
+
+                // 5. Render Standardized Report Footer Box
+                page.drawLine({
+                    start: { x: 10, y: 35 },
+                    end: { x: 585, y: 35 },
+                    thickness: 1,
+                    color: rgb(0, 0, 0)
+                });
+                
+                const footerText1 = "Note: Stop Distances may be approximated, frequencies may vary across a route, and span may be understated.";
+                page.drawText(footerText1, {
+                    x: 10,
+                    y: 22,
+                    size: 8,
+                    font: font,
+                    color: rgb(0.2, 0.2, 0.2)
+                });
+                const footerText2 = "For up to date information on departure times, myki fares, and disruptions visit transport.vic.gov.au";
+                page.drawText(footerText2, {
+                    x: 10,
+                    y: 14,
+                    size: 8,
+                    font: font,
+                    color: rgb(0.2, 0.2, 0.2)
+                });
+
+                // 6. Save and Trigger the Browser Download
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: "application/pdf" });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = `Transit_Stops_Report_${lat.toFixed(4)}_${lon.toFixed(4)}.pdf`;
+                link.click();
+
+                statusDiv.innerText = "Success! Professional PDF Report Generated.";
+            } catch (error) {
+                console.error(error);
+                statusDiv.innerText = "Error building PDF: " + error.message;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

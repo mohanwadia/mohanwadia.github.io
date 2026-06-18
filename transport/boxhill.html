@@ -52,7 +52,10 @@
             height: 100%;
         }
 
-        /* --- BUS/TRAM SECTION --- */
+        /* --- BUS SECTION --- */
+        .bus-pid-section { display: flex; flex-direction: column; margin-bottom: 20px; }
+        .bus-accent-line { height: 8px; background-color: #ff9900; width: 100%; margin-bottom: 10px; }
+
         .destination-row {
             border-bottom: 2px solid #b0b8bc;
             padding: 15px 5px;
@@ -109,9 +112,8 @@
         .time-rect { background-color: #1a1a1a; color: #ffffff; width: 90px; }
 
         /* --- TRAM STYLING --- */
-        .tram-pid-section { margin-top: 20px; flex-grow: 1; }
-        .tram-accent-line { height: 8px; background-color: #81bc00; width: 100%; }
-        .tram-pid-header { color: #1a1a1a; font-size: 2.2rem; font-weight: bold; padding: 8px 0 10px 0; }
+        .tram-pid-section { flex-grow: 1; display: flex; flex-direction: column; }
+        .tram-accent-line { height: 8px; background-color: #81bc00; width: 100%; margin-bottom: 10px; }
         
         .tram-service-row {
             display: grid;
@@ -178,13 +180,15 @@
     <hr class="top-divider">
     <div class="pid-container">
         <div class="column">
-            <div class="destination-row" id="chadstone-row"></div>
-            <div class="destination-row" id="deakin-row"></div>
-            <div class="destination-row" id="doncaster-row"></div>
+            <div class="bus-pid-section">
+                <div class="bus-accent-line"></div>
+                <div class="destination-row" id="chadstone-row"></div>
+                <div class="destination-row" id="deakin-row"></div>
+                <div class="destination-row" id="doncaster-row"></div>
+            </div>
             
             <div class="tram-pid-section">
                 <div class="tram-accent-line"></div>
-                <div class="tram-pid-header">Trams</div>
                 <div id="tram-container"></div>
             </div>
         </div>
