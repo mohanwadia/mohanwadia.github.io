@@ -69,6 +69,7 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+            flex-grow: 1;
         }
 
         .destination-name {
@@ -87,6 +88,7 @@
 
         .bus-block {
             display: flex;
+            justify-content: flex-end;
             gap: 6px;
             width: 100%;
             padding: 6px 0;
@@ -102,7 +104,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 42px;
+            height: 36px; /* Matched to 36px */
             border-radius: 0px;
             box-sizing: border-box;
         }
@@ -117,7 +119,7 @@
         
         .tram-service-row {
             display: grid;
-            grid-template-columns: auto 85px 1fr 55px 95px;
+            grid-template-columns: auto auto 1fr auto auto; /* Configured columns for right-alignment */
             align-items: center;
             padding: 14px 0;
             border-bottom: 1px solid #1a1a1a;
@@ -136,6 +138,7 @@
             justify-content: center; 
             font-weight: bold; 
             font-size: 1.4rem; 
+            margin-left: 6px;
         }
 
         .tram-realtime-box { 
@@ -147,7 +150,7 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            width: 100%; 
+            width: 95px; /* Locked width for right alignment alignment */
             margin-left: 6px; 
         }
 
@@ -159,7 +162,7 @@
         .train-pid-body { display: flex; flex-direction: column; flex-grow: 1; }
         .train-service-row {
             display: grid;
-            grid-template-columns: auto 85px 1fr 45px 95px;
+            grid-template-columns: auto auto 1fr auto auto; /* Adjusted to mimic tram layout for clean alignment */
             align-items: center;
             padding: 14px 0;
             border-bottom: 1px solid #1a1a1a;
@@ -167,8 +170,8 @@
         .train-accent-bar { width: 8px; height: 36px; background-color: #002C6C; margin-right: 12px; }
         .train-sched-time { font-size: 1.4rem; color: #555555; font-weight: 500; }
         .train-destination { font-size: 1.8rem; font-weight: bold; padding-left: 20px; }
-        .train-platform-box { background-color: #002C6C; color: #ffffff; font-size: 1.4rem; font-weight: bold; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
-        .train-realtime-box { background-color: #1a1a1a; color: #ffffff; font-size: 1.3rem; font-weight: bold; height: 36px; display: flex; align-items: center; justify-content: center; width: 100%; }
+        .train-platform-box { background-color: #002C6C; color: #ffffff; font-size: 1.4rem; font-weight: bold; width: 45px; height: 36px; display: flex; align-items: center; justify-content: center; margin-left: 6px; }
+        .train-realtime-box { background-color: #1a1a1a; color: #ffffff; font-size: 1.3rem; font-weight: bold; height: 36px; display: flex; align-items: center; justify-content: center; width: 95px; margin-left: 6px; }
 
         /* --- FOOTER --- */
         .footer-container { display: flex; justify-content: center; align-items: center; margin-top: auto; }
