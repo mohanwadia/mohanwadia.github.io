@@ -1,11 +1,10 @@
-media: media
-content:
-  - name: pages
-    label: Pages
-    type: collection
-    path: docs
+collections:
+  - name: "blog"
+    label: "Blog"
+    folder: "src/content/blog" # This matches your Astro folder
+    create: true
+    slug: "{{slug}}"
     fields:
-      - name: title
-        type: string
-      - name: body
-        type: rich-text
+      - {label: "Title", name: "title", widget: "string"}
+      - {label: "Date", name: "date", widget: "datetime"}
+      - {label: "Body", name: "body", widget: "markdown"}
