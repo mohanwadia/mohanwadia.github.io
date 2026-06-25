@@ -1,26 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Melbourne Transport Stop PDF Generator</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background-color: #f8f9fa; color: #333; }
-        h2 { color: #004685; margin-bottom: 20px; border-bottom: 2px solid #004685; padding-bottom: 8px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
-        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 15px; }
-        button { background: #004685; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; transition: background 0.2s; }
-        button:hover { background: #002d57; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { margin-top: 15px; color: #555; font-style: italic; text-align: center; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        h2 {
+            color: #004685;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #004685;
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+
+        button {
+            background: #004685;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #002d57;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 15px;
+            color: #555;
+            font-style: italic;
+            text-align: center;
+        }
     </style>
 </head>
+
 <body>
 
     <h2>Transit Stop PDF Generator</h2>
-    
+
     <div class="form-group">
         <label for="lat">Latitude:</label>
         <input type="number" id="lat" value="-37.920303" step="any">
@@ -30,29 +87,10 @@
         <input type="number" id="lon" value="145.158681" step="any">
     </div>
     <button id="generateBtn">Generate Professional Report</button>
-    
+
     <div id="status"></div>
 
     <script>
-        // Mapping route short numbers to their static description text from the Python script
-        const viaData = {
-            '902': 'Springvale RS, Glen Waverley RS, Nunawading RS, Doncaster SC, Eltham RS, Keon Park RS, Broadmeadows RS',
-            '733': 'Clayton RS, Monash Uni, Mount Waverley RS',
-            '850': 'Waverley Gardens SC, Brandon Park SC',
-            '848': 'Waverley Gardens SC',
-            '734': 'High Street Rd',
-            '704': 'Clayton RS, Huntingdale RS',
-            '804': 'Wheelers Hill SC, Monash Uni, Oakleigh RS',
-            '631': 'Monash Uni, Clayton RS',
-            '900': 'Monash Uni, Huntingdale RS, Oakleigh RS, Chadstone SC',
-            '736': 'Glen Waverley RS, Forest Hill SC',
-            '742': 'Glen Waverley RS and Oakleigh RS with Monash Uni deviation',
-            '601': 'North Rd as a Shuttle',
-            '824': 'Clayton RS',
-            '701': 'Mackie Road, Brady Road',
-            '802': 'Monash Uni, Oakleigh RS',
-            '754': 'Wheelers Hill SC'
-        };
 
         // --- Ported from the notebook: minutes_to_12hr / get_freq_label / get_span_label ---
 
@@ -145,7 +183,7 @@
             const lon = parseFloat(document.getElementById('lon').value);
             const statusDiv = document.getElementById('status');
             const btn = document.getElementById('generateBtn');
-            
+
             btn.disabled = true;
             statusDiv.innerText = "Fetching transit data...";
 
@@ -171,14 +209,14 @@
                 }
 
                 statusDiv.innerText = "Constructing professional layout configuration...";
-                
+
                 // 2. Initialize pdf-lib
                 const { PDFDocument, StandardFonts, rgb } = PDFLib;
                 const pdfDoc = await PDFDocument.create();
-                
+
                 // A4 dimensions are 595 x 842 points. 
                 // Notice: In pdf-lib, coordinate (0,0) is at the BOTTOM LEFT of the page.
-                const page = pdfDoc.addPage([595, 842]); 
+                const page = pdfDoc.addPage([595, 842]);
                 const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
                 const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -193,7 +231,7 @@
                 // 3. Render Top Metadata Boxes (Box 1 and Box 2)
                 // Python coordinates translation layer:
                 // Python Y=25 (from top) translates roughly to pdf-lib Y = 842 - 25 - height
-                
+
                 // Box 1 (Left Side: Transport Coverage Metrics)
                 page.drawRectangle({
                     x: 10,
@@ -244,7 +282,7 @@
 
                 // 4. Render Grid of Routes (Max 10 entries as capped by Python logic)
                 const maxItems = Math.min(routes.length, 10);
-                
+
                 for (let i = 0; i < maxItems; i++) {
                     const route = routes[i];
                     const routeType = route.type ?? 2; // default to Bus if missing
@@ -273,8 +311,8 @@
                     }
 
                     // Vector Icon Drawing Replacement: Draw a clean circle badge representing transit mode
-                    
-                    
+
+
                     // Draw localized short mode character indicators inside the badges
                     page.drawText(modeLetter, {
                         x: x_off + 8,
@@ -313,6 +351,14 @@
                     // Route long name (e.g. "Glen Waverley - Springvale via Wanda Street"),
                     // colour-matched to the mode badge, same as the notebook's PDF.
                     let routeLongName = route.name || '';
+                    let viaDisplay = '';
+                    const viaMatch = routeLongName.match(/\bvia\s+(.+)$/i);
+                    if (viaMatch) {
+                        const beforeVia = routeLongName.slice(0, viaMatch.index).trim();
+                        const viaPart = viaMatch[1].replace(/\s+/g, ' ').trim();
+                        routeLongName = `${beforeVia} via ${viaPart}`;
+                        viaDisplay = viaPart;
+                    }
                     const maxNameChars = 60;
                     if (routeLongName.length > maxNameChars) {
                         routeLongName = routeLongName.slice(0, maxNameChars - 3) + '...';
@@ -334,12 +380,12 @@
                         color: rgb(0.2, 0.2, 0.2)
                     });
 
-                    // "Via" Description compilation block (pulls local route static mapping)
-                    let viaLabel = `Via: ${viaData[routeShortName] || 'Local Coverage Area Details'}`;
+                    // "Via" Description compilation block (derived from the route long name)
+                    let viaLabel = viaDisplay ? `Via: ${viaDisplay}` : 'Local Coverage Area Details';
                     if (viaLabel.length > 55) {
                         viaLabel = viaLabel.substring(0, 52) + '...';
                     }
-                    
+
                     // Small operating context icon alternative placeholders (Drawn using simple vector marks)
                     //page.drawCircle({ x: x_off + 12, y: y_off - 51, radius: 2, color: rgb(0.4, 0.4, 0.4) });
                     page.drawText(viaLabel, {
@@ -379,7 +425,7 @@
                     thickness: 1,
                     color: rgb(0, 0, 0)
                 });
-                
+
                 const footerText1 = "Note: Stop Distances may be approximated, frequencies may vary across a route, and span may be understated.";
                 page.drawText(footerText1, {
                     x: 10,
@@ -415,4 +461,5 @@
         });
     </script>
 </body>
+
 </html>
