@@ -396,10 +396,10 @@
                         maxWidth: colWidth - 15
                     });
 
-                    let viaText = viaDisplay || '(Local coverage area)';
+                    let viaText = viaDisplay ? `Via: ${viaDisplay}` : '';
                     if (viaText.length > 50) viaText = viaText.substring(0, 47) + '...';
-                    
-                    page.drawText(`Via: ${viaText}`, {
+
+                    page.drawText(`Frequency: ${getFreqLabel(frequencyData, routeShortName)}`, {
                         x: x_off + 8,
                         y: y_off - 32,
                         size: 6.5,
@@ -408,7 +408,7 @@
                         maxWidth: colWidth - 15
                     });
 
-                    page.drawText(`Frequency: ${getFreqLabel(frequencyData, routeShortName)}`, {
+                    page.drawText(`Span: ${getSpanLabel(frequencyData, routeShortName)}`, {
                         x: x_off + 8,
                         y: y_off - 41,
                         size: 6.5,
@@ -417,7 +417,7 @@
                         maxWidth: colWidth - 15
                     });
 
-                    page.drawText(`Span: ${getSpanLabel(frequencyData, routeShortName)}`, {
+                    page.drawText(`${viaText}`, {
                         x: x_off + 8,
                         y: y_off - 50,
                         size: 6.5,
