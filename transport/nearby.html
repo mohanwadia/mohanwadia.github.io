@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transit Stop Report Generator</title>
+    <title>Nearby</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
         * {
@@ -287,7 +287,7 @@
 
     <div class="container">
         <div class="header">
-            <h1>Transit Stop Report</h1>
+            <h1>Nearby</h1>
             <p>Find all bus, tram, and train stops near any Melbourne location</p>
         </div>
 
@@ -871,7 +871,7 @@
                 const blob = new Blob([pdfBytes], { type: "application/pdf" });
                 const link = document.createElement('a');
                 link.href = window.URL.createObjectURL(blob);
-                link.download = `Transit_Stops_Report_${lat.toFixed(4)}_${lon.toFixed(4)}.pdf`;
+                link.download = `Nearby_${lat.toFixed(4)}_${lon.toFixed(4)}.pdf`;
                 link.click();
 
                 showStatus('Success! Professional PDF Report Generated.', 'success');
