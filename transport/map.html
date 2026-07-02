@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Melbourne Bus Routes — mohanwadia.com</title>
+<meta name="description" content="Every metropolitan Melbourne bus route, drawn from PTV GTFS schedule data. Click a route to see its path and timetable details.">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#171B24;
+    --ink-elevated:#1F2432;
+    --ink-elevated-2:#262C3D;
+    --hairline:#323A4D;
+    --text:#EDEFF3;
+    --text-muted:#8B93A6;
+    --accent:#FFB020;
+    --accent-dim:rgba(255,176,32,0.14);
+    --line-dim-opacity:0.16;
+    --panel-w:376px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--text);
+    background:#dfe3e8;
+    overflow:hidden;
+  }
+
+  #map{
+    position:absolute; inset:0;
+    background:#dfe3e8;
+  }
+
+  /* ---------- Panel ---------- */
+  #panel{
+    position:absolute;
+    top:16px; left:16px; bottom:16px;
+    width:var(--panel-w);
+    max-width:calc(100vw - 32px);
+    background:var(--ink);
+    border:1px solid var(--hairline);
+    border-radius:14px;
+    box-shadow:0 20px 50px -18px rgba(10,12,18,0.55), 0 2px 8px rgba(10,12,18,0.35);
+    display:flex; flex-direction:column;
+    overflow:hidden;
+    z-index:1000;
+  }
+
+  .panel-head{
+    padding:18px 20px 14px;
+    border-bottom:1px solid var(--hairline);
+    flex-shrink:0;
+  }
+  .eyebrow{
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 4px;
+  }
+  h1{
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700;
+    font-size:26px;
+    letter-spacing:0.01em;
+    margin:0 0 4px;
+    line-height:1.05;
+  }
+  .sub{
+    font-size:12.5px;
+    color:var(--text-muted);
+    margin:0;
+  }
+  .sub span{ color:var(--text); font-family:'IBM Plex Mono', monospace; font-weight:500; }
+
+  /* Search */
+  .search-wrap{
+    padding:12px 20px;
+    border-bottom:1px solid var(--hairline);
+    flex-shrink:0;
+  }
+  #search{
+    width:100%;
+    background:var(--ink-elevated);
+    border:1px solid var(--hairline);
+    border-radius:9px;
+    padding:9px 12px;
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    outline:none;
+    transition:border-color .15s ease;
+  }
+  #search:focus{ border-color:var(--accent); }
+  #search::placeholder{ color:var(--text-muted); }
+
+  /* List */
+  #list{
+    flex:1;
+    overflow-y:auto;
+    padding:6px 10px 14px;
+  }
+  #list::-webkit-scrollbar{ width:8px; }
+  #list::-webkit-scrollbar-thumb{ background:var(--hairline); border-radius:8px; }
+
+  .row{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    padding:8px 10px;
+    border-radius:9px;
+    cursor:pointer;
+    transition:background .12s ease;
+  }
+  .row:hover{ background:var(--ink-elevated); }
+  .row.active{ background:var(--accent-dim); }
+
+  .badge{
+    flex-shrink:0;
+    min-width:44px;
+    height:26px;
+    padding:0 8px;
+    border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:0.01em;
+  }
+  .row-name{
+    font-size:13px;
+    color:var(--text);
+    line-height:1.3;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .empty-state{
+    text-align:center;
+    color:var(--text-muted);
+    font-size:13px;
+    padding:40px 20px;
+  }
+
+  /* Detail view */
+  #detail{
+    display:none;
+    flex:1;
+    overflow-y:auto;
+    padding:18px 20px 20px;
+  }
+  .back-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:none;
+    border:none;
+    color:var(--text-muted);
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    font-weight:500;
+    cursor:pointer;
+    padding:0 0 16px;
+  }
+  .back-btn:hover{ color:var(--accent); }
+
+  .detail-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:56px;
+    height:34px;
+    padding:0 12px;
+    border-radius:7px;
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700;
+    font-size:20px;
+    margin-bottom:12px;
+  }
+  .detail-title{
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600;
+    font-size:19px;
+    line-height:1.25;
+    margin:0 0 16px;
+    color:var(--text);
+  }
+
+  .stat{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding:10px 0;
+    border-top:1px solid var(--hairline);
+  }
+  .stat:last-of-type{ border-bottom:1px solid var(--hairline); margin-bottom:16px; }
+  .stat-label{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:11.5px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+  }
+  .stat-value{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--text);
+    text-align:right;
+    max-width:60%;
+  }
+
+  .direction{
+    padding:12px 14px;
+    background:var(--ink-elevated);
+    border-radius:9px;
+    margin-bottom:8px;
+  }
+  .direction-label{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 3px;
+  }
+  .direction-value{
+    font-size:13.5px;
+    color:var(--text);
+  }
+
+  /* Footer credit */
+  .credit{
+    flex-shrink:0;
+    padding:10px 20px 12px;
+    border-top:1px solid var(--hairline);
+    font-size:10.5px;
+    color:var(--text-muted);
+    line-height:1.5;
+  }
+  .credit a{ color:var(--text-muted); }
+
+  /* Leaflet overrides */
+  .leaflet-control-attribution{
+    font-size:10px !important;
+    background:rgba(255,255,255,0.75) !important;
+  }
+  .leaflet-popup-content-wrapper{
+    background:var(--ink);
+    color:var(--text);
+    border-radius:10px;
+  }
+  .leaflet-popup-content{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    margin:10px 12px;
+  }
+  .leaflet-popup-tip{ background:var(--ink); }
+  .popup-num{
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700;
+    font-size:16px;
+    margin-right:6px;
+  }
+
+  /* Mobile */
+  @media (max-width: 680px){
+    :root{ --panel-w:100%; }
+    #panel{
+      top:12px; left:12px; right:12px; bottom:auto;
+      max-height:46vh;
+    }
+    h1{ font-size:22px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+  <div class="panel-head">
+    <p class="eyebrow">Melbourne Transit</p>
+    <h1>Bus Routes</h1>
+    <p class="sub"><span id="route-count">–</span> routes · PTV GTFS schedule data</p>
+  </div>
+
+  <div class="search-wrap">
+    <input id="search" type="text" placeholder="Search by number or destination…" autocomplete="off">
+  </div>
+
+  <div id="list"></div>
+
+  <div id="detail"></div>
+
+  <div class="credit">
+    Route paths from <a href="https://discover.data.vic.gov.au/dataset/timetable-and-geographic-information-gtfs" target="_blank" rel="noopener">PTV GTFS timetable data</a>, Dept. of Transport &amp; Planning Victoria.
+    Basemap © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>, © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+
+  var map = L.map('map', {
+    zoomControl:false,
+    attributionControl:true,
+    preferCanvas:true
+  }).setView([-37.8136, 144.9631], 11);
+
+  L.control.zoom({ position:'topright' }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution:'',
+    maxZoom:19,
+    subdomains:'abcd'
+  }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
+    attribution:'',
+    maxZoom:19,
+    subdomains:'abcd',
+    pane:'shadowPane'
+  });
+
+  var canvasRenderer = L.canvas({ padding:0.5 });
+
+  var listEl = document.getElementById('list');
+  var detailEl = document.getElementById('detail');
+  var searchEl = document.getElementById('search');
+  var countEl = document.getElementById('route-count');
+
+  var layersById = {};
+  var routesById = {};
+  var listRowsById = {};
+  var activeId = null;
+  var fullBounds = null;
+
+  function leadingNumber(name){
+    var m = /^(\d+)/.exec(name);
+    return m ? parseInt(m[0],10) : 99999;
+  }
+
+  function baseStyle(props){
+    return {
+      color: props.color || '#333',
+      weight: 2.4,
+      opacity: 0.8,
+      lineCap:'round',
+      lineJoin:'round',
+      renderer: canvasRenderer
+    };
+  }
+
+  function resetAllStyles(){
+    Object.keys(layersById).forEach(function(id){
+      var layer = layersById[id];
+      layer.setStyle(baseStyle(routesById[id].properties));
+    });
+  }
+
+  function dimAllExcept(id){
+    Object.keys(layersById).forEach(function(k){
+      var layer = layersById[k];
+      if(k === id){
+        layer.setStyle({ weight:5, opacity:1 });
+        layer.bringToFront();
+      } else {
+        layer.setStyle({ weight:2, opacity:0.12 });
+      }
+    });
+  }
+
+  function fmtInt(n){
+    return n.toLocaleString('en-AU');
+  }
+
+  function renderList(filterText){
+    listEl.innerHTML = '';
+    var q = (filterText || '').trim().toLowerCase();
+    var order = Object.keys(routesById).sort(function(a,b){
+      var pa = routesById[a].properties, pb = routesById[b].properties;
+      var na = leadingNumber(pa.short_name), nb = leadingNumber(pb.short_name);
+      if(na !== nb) return na - nb;
+      return pa.short_name.localeCompare(pb.short_name);
+    });
+
+    var shown = 0;
+    var matchedIds = [];
+    order.forEach(function(id){
+      var props = routesById[id].properties;
+      var hay = (props.short_name + ' ' + props.long_name).toLowerCase();
+      var match = !q || hay.indexOf(q) !== -1;
+      if(!match) return;
+      shown++;
+      matchedIds.push(id);
+
+      var row = document.createElement('div');
+      row.className = 'row' + (id === activeId ? ' active' : '');
+      row.dataset.id = id;
+
+      var badge = document.createElement('div');
+      badge.className = 'badge';
+      badge.style.background = props.color;
+      badge.style.color = props.text_color;
+      badge.textContent = props.short_name;
+
+      var name = document.createElement('div');
+      name.className = 'row-name';
+      name.textContent = props.long_name;
+
+      row.appendChild(badge);
+      row.appendChild(name);
+      row.addEventListener('click', function(){ selectRoute(id, true); });
+      row.addEventListener('mouseenter', function(){ previewRoute(id); });
+      row.addEventListener('mouseleave', function(){ unpreviewRoute(id); });
+
+      listEl.appendChild(row);
+      listRowsById[id] = row;
+    });
+
+    if(shown === 0){
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No routes match “' + filterText + '”.';
+      listEl.appendChild(empty);
+    }
+
+    countEl.textContent = q ? (shown + ' of ' + order.length) : order.length;
+
+    // dim/undim map lines to match filter
+    window.__filterActive = !!q;
+    order.forEach(function(id){
+      var layer = layersById[id];
+      if(id === activeId) return;
+      if(!q){
+        layer.setStyle({ opacity:0.8, weight:2.4 });
+      } else if(matchedIds.indexOf(id) !== -1){
+        layer.setStyle({ opacity:0.9, weight:2.8 });
+      } else {
+        layer.setStyle({ opacity:0.06, weight:1.4 });
+      }
+    });
+  }
+
+  function previewRoute(id){
+    if(id === activeId) return;
+    layersById[id].setStyle({ weight:4.5, opacity:1 });
+    layersById[id].bringToFront();
+  }
+  function unpreviewRoute(id){
+    if(id === activeId) return;
+    var q = searchEl.value.trim();
+    if(!q){
+      layersById[id].setStyle({ weight:2.4, opacity:0.8 });
+    } else {
+      renderList(q);
+    }
+  }
+
+  function selectRoute(id, fly){
+    activeId = id;
+    var feature = routesById[id];
+    var props = feature.properties;
+
+    dimAllExcept(id);
+
+    if(fly !== false){
+      map.flyToBounds(layersById[id].getBounds(), { paddingTopLeft:[panelPad(),40], paddingBottomRight:[40,40], duration:0.6 });
+    }
+
+    document.getElementById('list').style.display = 'none';
+    document.querySelector('.search-wrap').style.display = 'none';
+    detailEl.style.display = 'block';
+
+    var dirs = props.headsigns || {};
+    var dirKeys = Object.keys(dirs).sort();
+    var dirHtml = '';
+    dirKeys.forEach(function(k){
+      var label = (k === '0') ? 'Direction 1' : 'Direction 2';
+      dirHtml += '<div class="direction"><p class="direction-label">' + label + ' · towards</p><p class="direction-value">' + escapeHtml(dirs[k]) + '</p></div>';
+    });
+    if(dirKeys.length === 0){
+      dirHtml = '<div class="direction"><p class="direction-value">No headsign data available.</p></div>';
+    }
+
+    detailEl.innerHTML =
+      '<button class="back-btn" id="back-btn">← All routes</button>' +
+      '<div class="detail-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtml(props.short_name) + '</div>' +
+      '<h2 class="detail-title">' + escapeHtml(props.long_name) + '</h2>' +
+      '<div class="stat"><span class="stat-label">Route ID</span><span class="stat-value">' + escapeHtml(props.route_id) + '</span></div>' +
+      '<div class="stat"><span class="stat-label">Scheduled trips</span><span class="stat-value">' + fmtInt(props.trip_count) + '</span></div>' +
+      dirHtml;
+
+    document.getElementById('back-btn').addEventListener('click', clearSelection);
+
+    updateUrl(id);
+  }
+
+  function clearSelection(){
+    activeId = null;
+    resetAllStyles();
+    document.getElementById('list').style.display = 'block';
+    document.querySelector('.search-wrap').style.display = 'block';
+    detailEl.style.display = 'none';
+    detailEl.innerHTML = '';
+    renderList(searchEl.value);
+    updateUrl(null);
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function panelPad(){
+    return window.innerWidth <= 680 ? 20 : 400;
+  }
+
+  function updateUrl(id){
+    var url = new URL(window.location);
+    if(id){ url.searchParams.set('route', routesById[id].properties.short_name); }
+    else { url.searchParams.delete('route'); }
+    window.history.replaceState({}, '', url);
+  }
+
+  searchEl.addEventListener('input', function(){
+    renderList(searchEl.value);
+  });
+
+  fetch('routes.geojson')
+    .then(function(r){ return r.json(); })
+    .then(function(fc){
+      fc.features.forEach(function(f){
+        routesById[f.properties.route_id] = f;
+      });
+
+      var geoLayer = L.geoJSON(fc, {
+        style: function(f){ return baseStyle(f.properties); },
+        onEachFeature: function(f, layer){
+          layersById[f.properties.route_id] = layer;
+          layer.on('click', function(){ selectRoute(f.properties.route_id, true); });
+          layer.on('mouseover', function(){ previewRoute(f.properties.route_id); });
+          layer.on('mouseout', function(){ unpreviewRoute(f.properties.route_id); });
+        }
+      }).addTo(map);
+
+      fullBounds = geoLayer.getBounds();
+      renderList('');
+
+      // deep-link support: ?route=57
+      var params = new URLSearchParams(window.location.search);
+      var wanted = params.get('route');
+      if(wanted){
+        var match = Object.keys(routesById).find(function(id){
+          return routesById[id].properties.short_name === wanted;
+        });
+        if(match) selectRoute(match, true);
+      }
+    })
+    .catch(function(err){
+      listEl.innerHTML = '<div class="empty-state">Couldn’t load route data.<br>' + escapeHtml(err.message) + '</div>';
+      console.error(err);
+    });
+
+})();
+</script>
+
+</body>
+</html>
