@@ -648,7 +648,9 @@
 
             function isRouteBucketVisible(props) {
                 var entry = freqById[props.short_name];
-                var bucket = freqBucket(periodValue(entry, currentPeriod));
+                var val = periodValue(entry, currentPeriod);
+                if (val === null || val === undefined || val === 0) return false;
+                var bucket = freqBucket(val);
                 return !!bucketVisibility[bucket.key];
             }
 
@@ -879,17 +881,6 @@
 
                 detailEl.style.display = 'block';
 
-                var dirs = props.headsigns || {};
-                var dirKeys = Object.keys(dirs).sort();
-                var dirHtml = '';
-                dirKeys.forEach(function (k) {
-                    var label = (k === '0') ? 'Direction 1' : 'Direction 2';
-                    dirHtml += '<div class="direction"><p class="direction-label">' + label + ' · towards</p><p class="direction-value">' + escapeHtml(dirs[k]) + '</p></div>';
-                });
-                if (dirKeys.length === 0) {
-                    dirHtml = '<div class="direction"><p class="direction-value">No headsign data available.</p></div>';
-                }
-
                 var freqEntry = freqById[props.short_name];
                 var freqHtml = '<p class="block-label">Frequency</p>';
                 if (freqEntry) {
@@ -929,7 +920,6 @@
                     '<button class="back-btn" id="back-btn">← Back  </button>' +
                     '<div class="detail-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtml(props.short_name) + '</div>' +
                     '<h2 class="detail-title">' + escapeHtml(props.long_name) + '</h2>' +
-                    dirHtml +
                     spanHtml +
                     freqHtml;
 
