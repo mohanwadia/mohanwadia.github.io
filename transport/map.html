@@ -737,10 +737,10 @@
             <p class="freq-label">Area shading shows</p>
             <select id="sa2-select">
                 <option value="">Off (basemap only)</option>
-                <option value="bus400" selected>Any bus service within 400m</option>
+                <option value="bus400">Any bus service within 400m</option>
                 <option value="bus800hq">High-quality bus service within 800m</option>
                 <option value="pt400">Any public transport within 400m</option>
-                <option value="pt800hq">High-quality public transport within 800m</option>
+                <option value="pt800hq" selected>High-quality public transport within 800m</option>
                 <option value="seifa_score">SEIFA score (socio-economic)</option>
                 <option value="seifa_decile">SEIFA decile (1=disadv., 10=advantaged)</option>
                 <option value="population">Population (2025 est.)</option>
@@ -1262,7 +1262,7 @@
             var sa2FeatureList = []; // { code, feature, layer, bounds } - used for manual hit-testing
             var activeSa2Code = null;
             var hoveredSa2Code = null;
-            var currentSa2Metric = 'bus400';
+            var currentSa2Metric = 'pt800hq';
             var hoverEffectsEnabled = true;
             var routeHoverId = null; // route currently hovered on the map, used to suppress SA2 hover feedback
 
