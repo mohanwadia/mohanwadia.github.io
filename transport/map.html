@@ -1245,11 +1245,19 @@
             function previewRoute(id) {
                 if (id === activeId) return;
                 var fs = freqStyleForRoute(routesById[id].properties);
-                layersById[id].setStyle({ weight: Math.max(fs.weight + 1.5, 4.5), opacity: 1, dashArray: null });
+                if (activeId) {
+                    layersById[id].setStyle({ weight: Math.max(fs.weight + 1.5, 4.5), opacity: 1, dashArray: null });
+                } else {
+                    layersById[id].setStyle({ weight: Math.max(fs.weight + 1.5, 4.5), opacity: 1, dashArray: null });
+                }
                 layersById[id].bringToFront();
             }
             function unpreviewRoute(id) {
                 if (id === activeId) return;
+                if (activeId) {
+                    layersById[id].setStyle({ weight: 2, opacity: 0.12, dashArray: null });
+                    return;
+                }
                 var q = searchEl.value.trim();
                 if (!q) {
                     var fs = freqStyleForRoute(routesById[id].properties);
