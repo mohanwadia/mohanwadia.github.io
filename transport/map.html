@@ -700,15 +700,15 @@
         <div id="sa2-control">
             <p class="freq-label">Area shading shows</p>
             <select id="sa2-select">
-                <option value="">Off (basemap only)</option>
-                <option value="bus400" selected>Any bus service within 400m</option>
-                <option value="bus800hq">High-quality bus service within 800m</option>
-                <option value="pt400">Any public transport within 400m</option>
-                <option value="pt800hq">High-quality public transport within 800m</option>
-                <option value="seifa_score">SEIFA score (socio-economic)</option>
-                <option value="seifa_decile">SEIFA decile (1=disadv., 10=advantaged)</option>
-                <option value="population">Population (2025 est.)</option>
-                <option value="dwellings">Dwellings (2025 est.)</option>
+                <option value="">Off</option>
+                <option value="bus400" selected>Buses within 400m</option>
+                <option value="bus800hq">High-quality buses within 800m</option>
+                <option value="pt400">PT within 400m</option>
+                <option value="pt800hq">High-quality PT within 800m</option>
+                <option value="seifa_score">SEIFA score</option>
+                <option value="seifa_decile">SEIFA decile</option>
+                <option value="population">Population</option>
+                <option value="dwellings">Dwellings</option>
             </select>
             <label class="sa2-hover-toggle">
                 <input type="checkbox" id="sa2-hover-toggle-input" checked>
@@ -839,14 +839,22 @@
                 Object.keys(layersById).forEach(function (id) {
                     var layer = layersById[id];
                     var densityLayer = densityLayersById[id];
+                    var hitLayer = hitLayersById[id];
                     var props = routesById[id].properties;
                     var shouldBeVisible = isRouteBucketVisible(props);
                     if (shouldBeVisible) {
                         if (densityLayer && !map.hasLayer(densityLayer)) densityLayer.addTo(map);
                         if (!map.hasLayer(layer)) layer.addTo(map);
+                        if (hitLayer && !map.hasLayer(hitLayer)) hitLayer.addTo(map);
                     } else {
                         if (map.hasLayer(layer)) map.removeLayer(layer);
                         if (densityLayer && map.hasLayer(densityLayer)) map.removeLayer(densityLayer);
+                        if (hitLayer && map.hasLayer(hitLayer)) map.removeLayer(hitLayer);
+                        if (routeHoverId === id) {
+                            routeHoverId = null;
+                            hideRouteTooltip();
+                            map.getContainer().style.cursor = '';
+                        }
                     }
                 });
                 if (activeId && !isRouteBucketVisible(routesById[activeId].properties)) {
