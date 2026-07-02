@@ -598,6 +598,8 @@
 
     <div id="map"></div>
 
+    <div id="sa2-hover-tooltip" class="sa2-tooltip" style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:220px;"></div>
+
     <div id="panel">
         <div class="panel-head">
             <p class="eyebrow">Melbourne Transit</p>
@@ -998,6 +1000,7 @@
             }
 
             function selectRoute(id, fly) {
+                clearSa2Selection();
                 activeId = id;
                 var feature = routesById[id];
                 var props = feature.properties;
@@ -1108,6 +1111,10 @@
             // Data: ABS SA2 2021 boundaries joined to the "Improving bus services" dashboard export.
             var SA2_URL = 'sa2_data.geojson';
             var sa2Layer = null;
+            var sa2LayersByCode = {};
+            var sa2FeatureList = []; // { code, feature, layer, bounds } - used for manual hit-testing
+            var activeSa2Code = null;
+            var hoveredSa2Code = null;
             var currentSa2Metric = 'bus400';
 
             var SA2_COLOR_STOPS = {
@@ -1209,7 +1216,7 @@
 
             function sa2StyleFor(metricKey) {
                 return function (feature) {
-                    if (!metricKey) return { opacity: 0, fillOpacity: 0 };
+                    if (!metricKey) return { renderer: sa2Renderer, pane: 'sa2Pane', stroke: false, opacity: 0, fillOpacity: 0 };
                     var m = SA2_METRICS[metricKey];
                     var val = feature.properties[m.prop];
                     return {
@@ -1222,6 +1229,82 @@
                         fillOpacity: 0.62
                     };
                 };
+            }
+
+            function sa2BaseStyleObj(feature) {
+                return sa2StyleFor(currentSa2Metric)(feature);
+            }
+
+            function sa2HoverStyleObj(feature) {
+                var base = sa2BaseStyleObj(feature);
+                return Object.assign({}, base, {
+                    stroke: true,
+                    weight: 1.8,
+                    color: 'rgba(255, 176, 32, 0.8)',
+                    fillOpacity: Math.min((base.fillOpacity || 0) + 0.2, 0.9)
+                });
+            }
+
+            function sa2ActiveStyleObj(feature) {
+                var base = sa2BaseStyleObj(feature);
+                return Object.assign({}, base, {
+                    stroke: true,
+                    weight: 2.6,
+                    color: '#FFB020',
+                    fillOpacity: Math.min((base.fillOpacity || 0) + 0.26, 0.94)
+                });
+            }
+
+            function sa2StyleForCode(code) {
+                if (code === activeSa2Code) return sa2ActiveStyleObj;
+                return sa2BaseStyleObj;
+            }
+
+            // ---- Manual hit-testing ----
+            // The route lines and their density-halo layer sit in panes above sa2Pane, and
+            // their canvas elements cover the whole map regardless of what's drawn, so real
+            // Leaflet layer click/mouseover events on the SA2 polygons never fire. We hit-test
+            // by hand against the map's own click/mousemove events instead.
+            function pointInRing(x, y, ring) {
+                var inside = false;
+                for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                    var xi = ring[i][0], yi = ring[i][1];
+                    var xj = ring[j][0], yj = ring[j][1];
+                    var intersect = ((yi > y) !== (yj > y)) &&
+                        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                    if (intersect) inside = !inside;
+                }
+                return inside;
+            }
+
+            function pointInPolygonRings(x, y, rings) {
+                if (!pointInRing(x, y, rings[0])) return false;
+                for (var i = 1; i < rings.length; i++) {
+                    if (pointInRing(x, y, rings[i])) return false; // inside a hole
+                }
+                return true;
+            }
+
+            function pointInFeature(latlng, feature) {
+                var x = latlng.lng, y = latlng.lat;
+                var geom = feature.geometry;
+                if (geom.type === 'Polygon') {
+                    return pointInPolygonRings(x, y, geom.coordinates);
+                } else if (geom.type === 'MultiPolygon') {
+                    for (var i = 0; i < geom.coordinates.length; i++) {
+                        if (pointInPolygonRings(x, y, geom.coordinates[i])) return true;
+                    }
+                }
+                return false;
+            }
+
+            function findSa2AtLatLng(latlng) {
+                for (var i = 0; i < sa2FeatureList.length; i++) {
+                    var entry = sa2FeatureList[i];
+                    if (!entry.bounds.contains(latlng)) continue;
+                    if (pointInFeature(latlng, entry.feature)) return entry.code;
+                }
+                return null;
             }
 
             function sa2TooltipHtml(metricKey, props) {
@@ -1255,9 +1338,9 @@
                 currentSa2Metric = metricKey;
                 renderSa2Legend(metricKey);
                 if (!sa2Layer) return;
-                var styleFn = sa2StyleFor(metricKey);
                 sa2Layer.eachLayer(function (layer) {
-                    layer.setStyle(styleFn(layer.feature));
+                    var code = layer.feature.properties.SA2_CODE21;
+                    layer.setStyle(sa2StyleForCode(code)(layer.feature));
                     if (metricKey) {
                         layer.unbindTooltip();
                         layer.bindTooltip(sa2TooltipHtml(metricKey, layer.feature.properties), {
@@ -1272,6 +1355,154 @@
                 });
             }
 
+            function sa2FullProfileHtml(props) {
+                var html = '';
+                Object.keys(SA2_METRICS).forEach(function (key) {
+                    var m = SA2_METRICS[key];
+                    var val = props[m.prop];
+                    html += '<div class="stat">' +
+                        '<span class="stat-label">' + escapeHtml(m.label) + '</span>' +
+                        '<span class="stat-value">' + escapeHtml(sa2FormatValue(m.format, val)) + '</span>' +
+                        '</div>';
+                });
+                return html;
+            }
+
+            function renderSa2Detail(code) {
+                var layer = sa2LayersByCode[code];
+                if (!layer) return;
+                var props = layer.feature.properties;
+
+                detailEl.style.display = 'block';
+                detailEl.innerHTML =
+                    '<button class="back-btn" id="sa2-back-btn">← Back  </button>' +
+                    '<h2 class="detail-title">' + escapeHtml(props.Area) + '</h2>' +
+                    '<p class="sub" style="margin:-10px 0 16px;">SA2 ' + escapeHtml(props.SA2_CODE21) + '</p>' +
+                    sa2FullProfileHtml(props);
+
+                document.getElementById('sa2-back-btn').addEventListener('click', clearSa2Selection);
+            }
+
+            function selectSa2(code) {
+                if (activeId) {
+                    activeId = null;
+                    resetAllStyles();
+                    updateUrl(null);
+                }
+                if (activeSa2Code && activeSa2Code !== code && sa2LayersByCode[activeSa2Code]) {
+                    sa2LayersByCode[activeSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[activeSa2Code].feature));
+                }
+                activeSa2Code = code;
+                var layer = sa2LayersByCode[code];
+                if (layer) {
+                    layer.setStyle(sa2ActiveStyleObj(layer.feature));
+                    layer.bringToFront();
+                }
+                document.getElementById('panel').style.display = 'flex';
+                renderSa2Detail(code);
+            }
+
+            function clearSa2Selection() {
+                if (activeSa2Code && sa2LayersByCode[activeSa2Code]) {
+                    sa2LayersByCode[activeSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[activeSa2Code].feature));
+                }
+                if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                    sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                }
+                activeSa2Code = null;
+                document.getElementById('panel').style.display = 'none';
+                detailEl.style.display = 'none';
+                detailEl.innerHTML = '';
+            }
+
+            function showSa2Tooltip(code, clientX, clientY) {
+                if (!currentSa2Metric) return;
+                var layer = sa2LayersByCode[code];
+                if (!layer) return;
+                var el = document.getElementById('sa2-hover-tooltip');
+                el.innerHTML = sa2TooltipHtml(currentSa2Metric, layer.feature.properties);
+                el.style.display = 'block';
+                positionSa2Tooltip(clientX, clientY);
+            }
+
+            function positionSa2Tooltip(clientX, clientY) {
+                var el = document.getElementById('sa2-hover-tooltip');
+                var flipX = clientX > window.innerWidth - 240;
+                var flipY = clientY < 100;
+                el.style.left = flipX ? '' : (clientX + 16) + 'px';
+                el.style.right = flipX ? (window.innerWidth - clientX + 16) + 'px' : '';
+                el.style.top = flipY ? (clientY + 16) + 'px' : (clientY - 16) + 'px';
+                el.style.transform = flipY ? 'translateY(0)' : 'translateY(-100%)';
+            }
+
+            function hideSa2Tooltip() {
+                document.getElementById('sa2-hover-tooltip').style.display = 'none';
+            }
+
+            function setupSa2Interaction() {
+                var mapContainer = map.getContainer();
+                var pendingEvent = null;
+                var rafScheduled = false;
+
+                function handleMove(latlng, clientX, clientY) {
+                    var code = findSa2AtLatLng(latlng);
+
+                    if (code === hoveredSa2Code) {
+                        if (code) positionSa2Tooltip(clientX, clientY);
+                        return;
+                    }
+
+                    if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                        sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                    }
+
+                    hoveredSa2Code = code;
+
+                    if (code) {
+                        if (code !== activeSa2Code && sa2LayersByCode[code]) {
+                            sa2LayersByCode[code].setStyle(sa2HoverStyleObj(sa2LayersByCode[code].feature));
+                            sa2LayersByCode[code].bringToFront();
+                        }
+                        showSa2Tooltip(code, clientX, clientY);
+                        mapContainer.style.cursor = 'pointer';
+                    } else {
+                        hideSa2Tooltip();
+                        mapContainer.style.cursor = '';
+                    }
+                }
+
+                map.on('mousemove', function (e) {
+                    pendingEvent = e;
+                    if (rafScheduled) return;
+                    rafScheduled = true;
+                    requestAnimationFrame(function () {
+                        rafScheduled = false;
+                        if (!pendingEvent) return;
+                        handleMove(pendingEvent.latlng, pendingEvent.originalEvent.clientX, pendingEvent.originalEvent.clientY);
+                    });
+                });
+
+                map.on('mouseout', function () {
+                    if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                        sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                    }
+                    hoveredSa2Code = null;
+                    hideSa2Tooltip();
+                    mapContainer.style.cursor = '';
+                });
+
+                map.on('click', function (e) {
+                    var code = findSa2AtLatLng(e.latlng);
+                    if (code) {
+                        hideSa2Tooltip();
+                        selectSa2(code);
+                    } else {
+                        if (activeSa2Code) clearSa2Selection();
+                        if (activeId) clearSelection();
+                    }
+                });
+            }
+
             document.getElementById('sa2-select').addEventListener('change', function () {
                 updateSa2Display(this.value);
             });
@@ -1281,9 +1512,22 @@
                 .then(function (fc) {
                     sa2Layer = L.geoJSON(fc, {
                         style: sa2StyleFor(currentSa2Metric),
-                        interactive: true
+                        interactive: false
                     }).addTo(map);
+
+                    sa2Layer.eachLayer(function (layer) {
+                        var code = layer.feature.properties.SA2_CODE21;
+                        sa2LayersByCode[code] = layer;
+                        sa2FeatureList.push({
+                            code: code,
+                            feature: layer.feature,
+                            layer: layer,
+                            bounds: layer.getBounds()
+                        });
+                    });
+
                     updateSa2Display(currentSa2Metric);
+                    setupSa2Interaction();
                 })
                 .catch(function (err) {
                     console.warn('Could not load SA2 background data:', err.message);
@@ -1318,7 +1562,7 @@
                                 interactive: false
                             }).addTo(map);
                             layersById[f.properties.route_id] = layer;
-                            layer.on('click', function () { selectRoute(f.properties.route_id, true); });
+                            layer.on('click', function (e) { L.DomEvent.stopPropagation(e); selectRoute(f.properties.route_id, true); });
                             layer.on('mouseover', function () { previewRoute(f.properties.route_id); });
                             layer.on('mouseout', function () { unpreviewRoute(f.properties.route_id); });
                         }
