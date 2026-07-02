@@ -54,21 +54,23 @@
         #panel {
             position: absolute;
             top: 16px;
-            left: 16px;
-            bottom: 16px;
-            width: var(--panel-w);
+            right: 16px;
+            bottom: auto;
+            width: 320px;
             max-width: calc(100vw - 32px);
+            max-height: calc(100vh - 32px);
             background: var(--ink);
             border: 1px solid var(--hairline);
             border-radius: 14px;
             box-shadow: 0 20px 50px -18px rgba(10, 12, 18, 0.55), 0 2px 8px rgba(10, 12, 18, 0.35);
-            display: flex;
+            display: none;
             flex-direction: column;
             overflow: hidden;
             z-index: 1000;
         }
 
         .panel-head {
+            display: none;
             padding: 18px 20px 14px;
             border-bottom: 1px solid var(--hairline);
             flex-shrink: 0;
@@ -107,9 +109,18 @@
 
         /* Search */
         .search-wrap {
+            display: none;
             padding: 12px 20px;
             border-bottom: 1px solid var(--hairline);
             flex-shrink: 0;
+        }
+
+        #list {
+            display: none;
+        }
+
+        .credit {
+            display: none;
         }
 
         #search {
@@ -343,8 +354,8 @@
         /* ---------- Frequency control ---------- */
         #freq-control {
             position: absolute;
-            top: 96px;
-            right: 16px;
+            top: 16px;
+            left: 16px;
             width: 238px;
             background: var(--ink);
             border: 1px solid var(--hairline);
@@ -477,10 +488,11 @@
             }
 
             #panel {
-                top: 12px;
-                left: 12px;
+                top: auto;
                 right: 12px;
-                bottom: auto;
+                left: 12px;
+                bottom: 12px;
+                width: auto;
                 max-height: 46vh;
             }
 
@@ -857,15 +869,14 @@
                 activeId = id;
                 var feature = routesById[id];
                 var props = feature.properties;
+                document.getElementById('panel').style.display = 'flex';
 
                 dimAllExcept(id);
 
                 if (fly !== false) {
-                    map.flyToBounds(layersById[id].getBounds(), { paddingTopLeft: [panelPad(), 40], paddingBottomRight: [40, 40], duration: 0.6 });
+                    map.flyToBounds(layersById[id].getBounds(), { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
                 }
 
-                document.getElementById('list').style.display = 'none';
-                document.querySelector('.search-wrap').style.display = 'none';
                 detailEl.style.display = 'block';
 
                 var dirs = props.headsigns || {};
@@ -915,7 +926,7 @@
                 }
 
                 detailEl.innerHTML =
-                    '<button class="back-btn" id="back-btn">← All routes</button>' +
+                    '<button class="back-btn" id="back-btn">← Back  </button>' +
                     '<div class="detail-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtml(props.short_name) + '</div>' +
                     '<h2 class="detail-title">' + escapeHtml(props.long_name) + '</h2>' +
                     dirHtml +
@@ -930,8 +941,7 @@
             function clearSelection() {
                 activeId = null;
                 resetAllStyles();
-                document.getElementById('list').style.display = 'block';
-                document.querySelector('.search-wrap').style.display = 'block';
+                document.getElementById('panel').style.display = 'none';
                 detailEl.style.display = 'none';
                 detailEl.innerHTML = '';
                 renderList(searchEl.value);
