@@ -658,8 +658,10 @@
 
     <div id="map"></div>
 
-    <div id="sa2-hover-tooltip" class="sa2-tooltip" style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:220px;"></div>
-    <div id="route-hover-tooltip" class="sa2-tooltip" style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:240px;"></div>
+    <div id="sa2-hover-tooltip" class="sa2-tooltip"
+        style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:220px;"></div>
+    <div id="route-hover-tooltip" class="sa2-tooltip"
+        style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:240px;"></div>
 
     <div id="panel">
         <div class="panel-head">
@@ -1064,6 +1066,15 @@
             }
             function unpreviewRoute(id) {
                 if (id === activeId) return;
+                if (activeId) {
+                    var q = searchEl.value.trim();
+                    if (!q) {
+                        layersById[id].setStyle({ weight: 2, opacity: 0.12, dashArray: null });
+                    } else {
+                        renderList(q);
+                    }
+                    return;
+                }
                 var q = searchEl.value.trim();
                 if (!q) {
                     var fs = freqStyleForRoute(routesById[id].properties);
