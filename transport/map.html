@@ -77,7 +77,7 @@
         }
 
         .eyebrow {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 600;
             font-size: 12px;
             letter-spacing: 0.14em;
@@ -87,7 +87,7 @@
         }
 
         h1 {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 700;
             font-size: 26px;
             letter-spacing: 0.01em;
@@ -103,7 +103,7 @@
 
         .sub span {
             color: var(--text);
-            font-family: 'IBM Plex Mono', monospace;
+            font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
         }
 
@@ -130,7 +130,7 @@
             border-radius: 9px;
             padding: 9px 12px;
             color: var(--text);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Manrope', sans-serif;
             font-size: 14px;
             outline: none;
             transition: border-color .15s ease;
@@ -187,7 +187,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 700;
             font-size: 15px;
             letter-spacing: 0.01em;
@@ -227,7 +227,7 @@
             border-radius: 999px;
             background: var(--ink-elevated);
             color: var(--text-muted);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Manrope', sans-serif;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
@@ -250,14 +250,14 @@
             height: 34px;
             padding: 0 12px;
             border-radius: 7px;
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 700;
             font-size: 20px;
             margin-bottom: 12px;
         }
 
         .detail-title {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 600;
             font-size: 19px;
             line-height: 1.25;
@@ -279,7 +279,7 @@
         }
 
         .stat-label {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-size: 11.5px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -287,11 +287,148 @@
         }
 
         .stat-value {
-            font-family: 'IBM Plex Mono', monospace;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 13px;
             color: var(--text);
             text-align: right;
             max-width: 60%;
+        }
+
+        /* ---------- SA2 profile: transit access cards ---------- */
+        .sa2-metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .sa2-metric-card {
+            background: var(--ink-elevated);
+            border-radius: 10px;
+            padding: 10px 12px 11px;
+        }
+
+        .sa2-metric-card-label {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            line-height: 1.3;
+            margin: 0 0 6px;
+        }
+
+        .sa2-metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 7px;
+        }
+
+        .sa2-metric-track {
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+        .sa2-metric-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        .sa2-metric-caption {
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.3;
+            margin: 0;
+        }
+
+        /* ---------- SA2 profile: SEIFA decile card ---------- */
+        .sa2-seifa-card {
+            background: var(--ink-elevated);
+            border-radius: 10px;
+            padding: 12px 14px 13px;
+            margin-bottom: 4px;
+        }
+
+        .sa2-seifa-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .sa2-seifa-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 21px;
+            font-weight: 600;
+            color: var(--text);
+            flex-shrink: 0;
+        }
+
+        .sa2-seifa-band {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: right;
+        }
+
+        .sa2-decile-scale {
+            position: relative;
+            height: 8px;
+            border-radius: 4px;
+            margin: 4px 0 6px;
+        }
+
+        .sa2-decile-marker {
+            position: absolute;
+            top: -4px;
+            width: 3px;
+            height: 16px;
+            background: #fff;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(10, 12, 18, 0.5);
+            transform: translateX(-50%);
+        }
+
+        .sa2-decile-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9.5px;
+            color: var(--text-muted);
+        }
+
+        /* ---------- SA2 profile: population / dwellings ---------- */
+        .sa2-stat-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .sa2-stat-card {
+            background: var(--ink-elevated);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .sa2-stat-card-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0 0 3px;
+        }
+
+        .sa2-stat-card-label {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            margin: 0 0 3px;
+        }
+
+        .sa2-stat-card-caption {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin: 0;
         }
 
         .direction {
@@ -302,7 +439,7 @@
         }
 
         .direction-label {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-size: 11px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -342,7 +479,7 @@
         }
 
         .leaflet-popup-content {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Manrope', sans-serif;
             font-size: 13px;
             margin: 10px 12px;
         }
@@ -352,7 +489,7 @@
         }
 
         .popup-num {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 700;
             font-size: 16px;
             margin-right: 6px;
@@ -373,7 +510,7 @@
         }
 
         .freq-label {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 600;
             font-size: 11px;
             letter-spacing: 0.12em;
@@ -389,7 +526,7 @@
             border-radius: 8px;
             padding: 8px 10px;
             color: var(--text);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Manrope', sans-serif;
             font-size: 13px;
             outline: none;
             cursor: pointer;
@@ -458,7 +595,7 @@
             border-radius: 8px;
             padding: 8px 10px;
             color: var(--text);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Manrope', sans-serif;
             font-size: 13px;
             outline: none;
             cursor: pointer;
@@ -533,7 +670,7 @@
             margin-top: 5px;
             font-size: 11px;
             color: var(--text-muted);
-            font-family: 'IBM Plex Mono', monospace;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .sa2-legend-caption {
@@ -550,7 +687,7 @@
             color: var(--text) !important;
             border-radius: 8px !important;
             padding: 8px 10px !important;
-            font-family: 'Inter', sans-serif !important;
+            font-family: 'Manrope', sans-serif !important;
             box-shadow: 0 12px 30px -10px rgba(10, 12, 18, 0.6) !important;
         }
 
@@ -559,7 +696,7 @@
         }
 
         .sa2-tooltip .tt-name {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-weight: 600;
             font-size: 13px;
             color: var(--accent);
@@ -589,7 +726,7 @@
 
         /* Detail: frequency + span blocks */
         .block-label {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-size: 11px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -615,7 +752,7 @@
         }
 
         .freq-row-value {
-            font-family: 'IBM Plex Mono', monospace;
+            font-family: 'JetBrains Mono', monospace;
             color: var(--text-muted);
             font-size: 12.5px;
         }
@@ -632,7 +769,7 @@
         }
 
         .span-row-label {
-            font-family: 'Barlow Condensed', sans-serif;
+            font-family: 'Source Serif 4', sans-serif;
             font-size: 11px;
             letter-spacing: 0.08em;
             text-transform: uppercase;
@@ -643,7 +780,7 @@
         .span-row-value {
             font-size: 13.5px;
             color: var(--text);
-            font-family: 'IBM Plex Mono', monospace;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         /* Mobile */
@@ -1275,49 +1412,49 @@
             var SA2_METRICS = {
                 bus400: {
                     prop: '% dwellings within 400m of any bus service',
-                    label: 'Any bus service within 400m', format: 'percent',
+                    label: 'Any bus service within 400m', shortLabel: 'Any bus · 400m', format: 'percent',
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 400m walk of any bus stop.'
                 },
                 bus800hq: {
                     prop: '% dwellings with 800m of a high quality bus service',
-                    label: 'High-quality bus service within 800m', format: 'percent',
+                    label: 'High-quality bus service within 800m', shortLabel: 'HQ bus · 800m', format: 'percent',
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 800m of a high-frequency bus service.'
                 },
                 pt400: {
                     prop: '% dwellings within 400m of any public transport service',
-                    label: 'Any public transport within 400m', format: 'percent',
+                    label: 'Any public transport within 400m', shortLabel: 'Any PT · 400m', format: 'percent',
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 400m walk of any PT service (bus, train or tram).'
                 },
                 pt800hq: {
                     prop: '% dwellings with 800m of a high quality public transport service',
-                    label: 'High-quality public transport within 800m', format: 'percent',
+                    label: 'High-quality public transport within 800m', shortLabel: 'HQ PT · 800m', format: 'percent',
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 800m of a high-frequency PT service.'
                 },
                 seifa_score: {
                     prop: 'SEIFA_Score',
-                    label: 'SEIFA score (socio-economic)', format: 'score',
+                    label: 'SEIFA score (socio-economic)', shortLabel: 'SEIFA score', format: 'score',
                     domain: [830, 1160], palette: 'seifa',
                     caption: 'ABS SEIFA Index of Relative Socio-economic Advantage/Disadvantage. Higher = more advantaged.'
                 },
                 seifa_decile: {
                     prop: 'SEIFA_Decile',
-                    label: 'SEIFA decile', format: 'decile',
+                    label: 'SEIFA decile', shortLabel: 'SEIFA decile', format: 'decile',
                     domain: [1, 10], palette: 'seifa',
                     caption: 'SEIFA decile, 1 = most disadvantaged 10% of areas nationally, 10 = least.'
                 },
                 population: {
                     prop: 'population_2025',
-                    label: 'Population (2025 est.)', format: 'count',
+                    label: 'Population (2025 est.)', shortLabel: 'Population', format: 'count',
                     domain: [0, 37000], palette: 'count',
                     caption: 'Estimated resident population by SA2, 2025.'
                 },
                 dwellings: {
                     prop: 'dwellings_2025',
-                    label: 'Dwellings (2025 est.)', format: 'count',
+                    label: 'Dwellings (2025 est.)', shortLabel: 'Dwellings', format: 'count',
                     domain: [0, 21000], palette: 'count',
                     caption: 'Estimated dwelling count by SA2, 2025.'
                 }
@@ -1361,6 +1498,57 @@
                     case 'score': return Math.round(value).toLocaleString();
                     default: return String(value);
                 }
+            }
+
+            // ---- Percentile context ----
+            // sa2MetricStats holds a sorted array of every SA2's numeric value for each metric,
+            // built once the boundary data has loaded, so the detail panel can say things like
+            // "higher than 72% of Melbourne areas" instead of just showing a raw number.
+            var sa2MetricStats = {};
+
+            function buildSa2MetricStats() {
+                Object.keys(SA2_METRICS).forEach(function (key) {
+                    var m = SA2_METRICS[key];
+                    var vals = [];
+                    sa2FeatureList.forEach(function (entry) {
+                        var v = entry.feature.properties[m.prop];
+                        if (typeof v === 'number' && !isNaN(v)) vals.push(v);
+                    });
+                    vals.sort(function (a, b) { return a - b; });
+                    sa2MetricStats[key] = vals;
+                });
+            }
+
+            // Share of areas at or below this value, 0-100.
+            function sa2Percentile(metricKey, value) {
+                if (value === null || value === undefined || isNaN(value)) return null;
+                var sorted = sa2MetricStats[metricKey];
+                if (!sorted || !sorted.length) return null;
+                var lo = 0, hi = sorted.length;
+                while (lo < hi) {
+                    var mid = (lo + hi) >> 1;
+                    if (sorted[mid] <= value) lo = mid + 1; else hi = mid;
+                }
+                return Math.round((lo / sorted.length) * 100);
+            }
+
+            function ordinal(n) {
+                var v = Math.abs(n) % 100;
+                var t = v % 10;
+                if (v >= 11 && v <= 13) return n + 'th';
+                if (t === 1) return n + 'st';
+                if (t === 2) return n + 'nd';
+                if (t === 3) return n + 'rd';
+                return n + 'th';
+            }
+
+            function seifaBandLabel(decile) {
+                if (decile === null || decile === undefined || isNaN(decile)) return null;
+                if (decile <= 2) return 'Most disadvantaged';
+                if (decile <= 4) return 'Below average';
+                if (decile <= 6) return 'Average';
+                if (decile <= 8) return 'Above average';
+                return 'Most advantaged';
             }
 
             function sa2StyleFor(metricKey) {
@@ -1515,16 +1703,76 @@
                 });
             }
 
-            function sa2FullProfileHtml(props) {
+            function sa2MetricCardHtml(metricKey, props) {
+                var m = SA2_METRICS[metricKey];
+                var val = props[m.prop];
+                var hasVal = typeof val === 'number' && !isNaN(val);
+                var color = hasVal ? sa2ColorForValue(metricKey, val) : '#5a6172';
+                var fillPct = hasVal
+                    ? Math.max(0, Math.min(1, (val - m.domain[0]) / (m.domain[1] - m.domain[0]))) * 100
+                    : 0;
+                var rank = hasVal ? sa2Percentile(metricKey, val) : null;
+                var caption = hasVal
+                    ? (rank !== null ? ordinal(rank) + ' percentile' : '')
+                    : 'No data for this area';
+                return '<div class="sa2-metric-card">' +
+                    '<p class="sa2-metric-card-label">' + escapeHtml(m.shortLabel || m.label) + '</p>' +
+                    '<p class="sa2-metric-value" style="color:' + color + '">' + escapeHtml(sa2FormatValue(m.format, val)) + '</p>' +
+                    '<div class="sa2-metric-track"><div class="sa2-metric-fill" style="width:' + fillPct + '%;background:' + color + '"></div></div>' +
+                    '<p class="sa2-metric-caption">' + escapeHtml(caption) + '</p>' +
+                    '</div>';
+            }
+
+            function sa2SeifaCardHtml(props) {
+                var score = props['SEIFA_Score'];
+                var decile = props['SEIFA_Decile'];
+                var hasScore = typeof score === 'number' && !isNaN(score);
+                var hasDecile = typeof decile === 'number' && !isNaN(decile);
+                var stops = SA2_COLOR_STOPS.seifa;
+                var band = hasDecile ? seifaBandLabel(decile) : null;
+                var markerPct = hasDecile ? ((decile - 1) / 9) * 100 : null;
+                return '<div class="sa2-seifa-card">' +
+                    '<div class="sa2-seifa-head">' +
+                    '<span class="sa2-seifa-score">' + escapeHtml(hasScore ? Math.round(score).toLocaleString() : '—') + '</span>' +
+                    '<span class="sa2-seifa-band">' + escapeHtml(band || 'No data') + (hasDecile ? ' · Decile ' + Math.round(decile) : '') + '</span>' +
+                    '</div>' +
+                    '<div class="sa2-decile-scale" style="background:linear-gradient(to right,' + stops.join(',') + ')">' +
+                    (markerPct !== null ? '<div class="sa2-decile-marker" style="left:' + markerPct + '%"></div>' : '') +
+                    '</div>' +
+                    '<div class="sa2-decile-labels"><span>Most disadvantaged</span><span>Most advantaged</span></div>' +
+                    '</div>';
+            }
+
+            function sa2StatCardHtml(metricKey, props) {
+                var m = SA2_METRICS[metricKey];
+                var val = props[m.prop];
+                var hasVal = typeof val === 'number' && !isNaN(val);
+                var rank = hasVal ? sa2Percentile(metricKey, val) : null;
+                var caption = hasVal && rank !== null ? ordinal(rank) + ' percentile' : 'No data';
+                return '<div class="sa2-stat-card">' +
+                    '<p class="sa2-stat-card-value">' + escapeHtml(hasVal ? Math.round(val).toLocaleString() : '—') + '</p>' +
+                    '<p class="sa2-stat-card-label">' + escapeHtml(m.shortLabel || m.label) + '</p>' +
+                    '<p class="sa2-stat-card-caption">' + escapeHtml(caption) + '</p>' +
+                    '</div>';
+            }
+
+            function sa2ProfileHtml(props) {
                 var html = '';
-                Object.keys(SA2_METRICS).forEach(function (key) {
-                    var m = SA2_METRICS[key];
-                    var val = props[m.prop];
-                    html += '<div class="stat">' +
-                        '<span class="stat-label">' + escapeHtml(m.label) + '</span>' +
-                        '<span class="stat-value">' + escapeHtml(sa2FormatValue(m.format, val)) + '</span>' +
-                        '</div>';
-                });
+                html += '<p class="block-label">Transit access</p>';
+                html += '<div class="sa2-metric-grid">' +
+                    sa2MetricCardHtml('pt400', props) +
+                    sa2MetricCardHtml('pt800hq', props) +
+                    '</div>';
+
+                html += '<p class="block-label">Socio-economic profile</p>';
+                html += sa2SeifaCardHtml(props);
+
+                html += '<p class="block-label">Population &amp; dwellings</p>';
+                html += '<div class="sa2-stat-pair">' +
+                    sa2StatCardHtml('population', props) +
+                    sa2StatCardHtml('dwellings', props) +
+                    '</div>';
+
                 return html;
             }
 
@@ -1539,8 +1787,7 @@
                     '<button class="detail-close-btn" id="sa2-back-btn" aria-label="Close SA2 details">×</button>' +
                     '</div>' +
                     '<h2 class="detail-title">' + escapeHtml(props.Area) + '</h2>' +
-                    '<p class="sub" style="margin:-10px 0 16px;">SA2 ' + escapeHtml(props.SA2_CODE21) + '</p>' +
-                    sa2FullProfileHtml(props);
+                    sa2ProfileHtml(props);
 
                 document.getElementById('sa2-back-btn').addEventListener('click', clearSa2Selection);
             }
@@ -1751,6 +1998,8 @@
                             bounds: layer.getBounds()
                         });
                     });
+
+                    buildSa2MetricStats();
 
                     updateSa2Display(currentSa2Metric);
                     setupSa2Interaction();
