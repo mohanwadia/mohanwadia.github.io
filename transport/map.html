@@ -700,15 +700,15 @@
         <div id="sa2-control">
             <p class="freq-label">Area shading shows</p>
             <select id="sa2-select">
-                <option value="">Off</option>
-                <option value="bus400" selected>Buses within 400m</option>
-                <option value="bus800hq">High-quality buses within 800m</option>
-                <option value="pt400">PT within 400m</option>
-                <option value="pt800hq">High-quality PT within 800m</option>
-                <option value="seifa_score">SEIFA score</option>
-                <option value="seifa_decile">SEIFA decile</option>
-                <option value="population">Population</option>
-                <option value="dwellings">Dwellings</option>
+                <option value="">Off (basemap only)</option>
+                <option value="bus400" selected>Any bus service within 400m</option>
+                <option value="bus800hq">High-quality bus service within 800m</option>
+                <option value="pt400">Any public transport within 400m</option>
+                <option value="pt800hq">High-quality public transport within 800m</option>
+                <option value="seifa_score">SEIFA score (socio-economic)</option>
+                <option value="seifa_decile">SEIFA decile (1=disadv., 10=advantaged)</option>
+                <option value="population">Population (2025 est.)</option>
+                <option value="dwellings">Dwellings (2025 est.)</option>
             </select>
             <label class="sa2-hover-toggle">
                 <input type="checkbox" id="sa2-hover-toggle-input" checked>
@@ -1519,13 +1519,18 @@
                 updateSa2Url(null);
             }
 
+            function sa2NameOnlyTooltipHtml(props) {
+                return '<div class="tt-name">' + escapeHtmlGlobal(props.Area || props.SA2_CODE21) + '</div>';
+            }
+
             function showSa2Tooltip(code, clientX, clientY) {
                 if (!hoverEffectsEnabled) return;
-                if (!currentSa2Metric) return; // never show a bare "name only" tooltip — only when a statistic is selected
                 var layer = sa2LayersByCode[code];
                 if (!layer) return;
                 var el = document.getElementById('sa2-hover-tooltip');
-                el.innerHTML = sa2TooltipHtml(currentSa2Metric, layer.feature.properties);
+                el.innerHTML = currentSa2Metric
+                    ? sa2TooltipHtml(currentSa2Metric, layer.feature.properties)
+                    : sa2NameOnlyTooltipHtml(layer.feature.properties);
                 el.style.display = 'block';
                 positionTooltipEl(el, clientX, clientY);
             }
