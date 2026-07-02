@@ -529,7 +529,7 @@
     </div>
 
     <div id="freq-control">
-        <p class="freq-label">Line width shows frequency</p>
+        <p class="freq-label">Lines shows frequency at</p>
         <select id="freq-select">
             <option value="weekday_am_peak">Weekday AM Peak</option>
             <option value="weekday_midday" selected>Weekday Midday</option>
@@ -582,18 +582,18 @@
 
             // Bucketed line-weight scale: lower average wait (more frequent) = thicker line.
             var FREQ_BUCKETS = [
-                { max: 10, weight: 7.5, opacity: 0.92, color: '#5a0b0b', label: '10 min or less' },
-                { max: 15, weight: 6, opacity: 0.9, color: '#b22323', label: '11–15 min' },
-                { max: 20, weight: 4.6, opacity: 0.88, color: '#6e3ea8', label: '16–20 min' },
-                { max: 30, weight: 3.2, opacity: 0.85, color: '#0f84a8', label: '21–30 min' },
-                { max: 60, weight: 2.1, opacity: 0.8, color: '#4ca3a3', label: '31–60 min' },
-                { max: Infinity, weight: 1.3, opacity: 0.62, color: '#95783b', label: 'Peak only / 60+ min' }
+                { key: 'dark-red', max: 10, weight: 7.5, opacity: 0.92, color: '#5a0b0b', label: '10 min or less' },
+                { key: 'red', max: 15, weight: 6, opacity: 0.9, color: '#b22323', label: '15 minutes' },
+                { key: 'purple', max: 20, weight: 4.6, opacity: 0.88, color: '#6e3ea8', label: '20 minutes' },
+                { key: 'blue', max: 30, weight: 3.2, opacity: 0.85, color: '#0f84a8', label: '30 minutes' },
+                { key: 'teal', max: 60, weight: 2.1, opacity: 0.8, color: '#4ca3a3', label: '40-60 minutes' },
+                { key: 'brown', max: Infinity, weight: 1.3, opacity: 0.62, color: '#95783b', label: 'Peak Only / Limited Service' }
             ];
-            var NO_DATA_BUCKET = { weight: 1.1, opacity: 0.22, dash: '2,5', color: '#9AA3B8', label: 'No scheduled service' };
+            var bucketVisibility = {};
+            FREQ_BUCKETS.forEach(function (bucket) { bucketVisibility[bucket.key] = true; });
 
             function freqBucket(min) {
-                if (min === null || min === undefined || isNaN(min)) return NO_DATA_BUCKET;
-                for (var i = 0; i < FREQ_BUCKETS.length; i++) { if (min <= FREQ_BUCKETS[i].max) return FREQ_BUCKETS[i]; }
+                for (var i = 0; i < FREQ_BUCKETS.length; i++) { if (min === null || min === undefined || isNaN(min) ? FREQ_BUCKETS[i].key === 'brown' : min <= FREQ_BUCKETS[i].max) return FREQ_BUCKETS[i]; }
                 return FREQ_BUCKETS[FREQ_BUCKETS.length - 1];
             }
 
@@ -634,19 +634,54 @@
                 return style;
             }
 
+            function isRouteBucketVisible(props) {
+                var entry = freqById[props.short_name];
+                var bucket = freqBucket(periodValue(entry, currentPeriod));
+                return !!bucketVisibility[bucket.key];
+            }
+
+            function updateRouteVisibility() {
+                Object.keys(layersById).forEach(function (id) {
+                    var layer = layersById[id];
+                    var props = routesById[id].properties;
+                    var shouldBeVisible = isRouteBucketVisible(props);
+                    if (shouldBeVisible) {
+                        if (!map.hasLayer(layer)) layer.addTo(map);
+                    } else {
+                        if (map.hasLayer(layer)) map.removeLayer(layer);
+                    }
+                });
+                if (activeId && !isRouteBucketVisible(routesById[activeId].properties)) {
+                    clearSelection();
+                }
+            }
+
             function renderLegend() {
                 var el = document.getElementById('freq-legend');
                 if (!el) return;
-                var rows = FREQ_BUCKETS.concat([NO_DATA_BUCKET]);
+                var rows = FREQ_BUCKETS;
                 el.innerHTML = rows.map(function (b) {
                     var w = Math.max(2, Math.min(6, b.weight));
                     var dashClass = b.dash ? 'freq-swatch dashed' : 'freq-swatch';
                     var color = b.color || '#9AA3B8';
+                    var checkboxHtml = b.key ?
+                        '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">' +
+                        '<input type="checkbox" class="freq-category-toggle" data-key="' + escapeHtmlGlobal(b.key) + '"' + (bucketVisibility[b.key] ? ' checked' : '') + ' />' +
+                        '<span class="freq-legend-text">' + escapeHtmlGlobal(b.label) + '</span>' +
+                        '</label>' :
+                        '<span class="freq-legend-text">' + escapeHtmlGlobal(b.label) + '</span>';
                     return '<div class="freq-legend-row">' +
                         '<span class="' + dashClass + '" style="border-top-width:' + w + 'px;border-top-color:' + color + ';"></span>' +
-                        '<span class="freq-legend-text">' + escapeHtmlGlobal(b.label) + '</span>' +
+                        checkboxHtml +
                         '</div>';
                 }).join('');
+
+                document.querySelectorAll('.freq-category-toggle').forEach(function (input) {
+                    input.addEventListener('change', function () {
+                        bucketVisibility[this.dataset.key] = this.checked;
+                        updateRouteVisibility();
+                    });
+                });
             }
 
             function escapeHtmlGlobal(s) {
@@ -740,6 +775,7 @@
                 var matchedIds = [];
                 order.forEach(function (id) {
                     var props = routesById[id].properties;
+                    if (!isRouteBucketVisible(props)) return;
                     var hay = (props.short_name + ' ' + props.long_name).toLowerCase();
                     var match = !q || hay.indexOf(q) !== -1;
                     if (!match) return;
@@ -784,6 +820,11 @@
                 order.forEach(function (id) {
                     var layer = layersById[id];
                     if (id === activeId) return;
+                    if (!isRouteBucketVisible(routesById[id].properties)) {
+                        if (map.hasLayer(layer)) map.removeLayer(layer);
+                        return;
+                    }
+                    if (!map.hasLayer(layer)) map.addLayer(layer);
                     var fs = freqStyleForRoute(routesById[id].properties);
                     if (!q) {
                         layer.setStyle({ opacity: fs.opacity, weight: fs.weight, dashArray: fs.dashArray });
@@ -927,6 +968,8 @@
                 } else {
                     resetAllStyles();
                 }
+                updateRouteVisibility();
+                renderList(searchEl.value);
             });
 
             renderLegend();
@@ -961,6 +1004,7 @@
                     }).addTo(map);
 
                     fullBounds = geoLayer.getBounds();
+                    updateRouteVisibility();
                     renderList('');
 
                     // deep-link support: ?route=57
