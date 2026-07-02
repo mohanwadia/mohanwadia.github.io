@@ -422,6 +422,89 @@
             color: var(--text-muted);
         }
 
+        /* ---------- SA2 background data control ---------- */
+        #sa2-control {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--hairline);
+        }
+
+        #sa2-select {
+            width: 100%;
+            background: var(--ink-elevated);
+            border: 1px solid var(--hairline);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #sa2-select:focus {
+            border-color: var(--accent);
+        }
+
+        .sa2-legend {
+            margin-top: 10px;
+            display: none;
+        }
+
+        .sa2-legend.visible {
+            display: block;
+        }
+
+        .sa2-gradient-bar {
+            height: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--hairline);
+        }
+
+        .sa2-legend-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .sa2-legend-caption {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* SA2 hover tooltip */
+        .sa2-tooltip {
+            background: var(--ink) !important;
+            border: 1px solid var(--hairline) !important;
+            color: var(--text) !important;
+            border-radius: 8px !important;
+            padding: 8px 10px !important;
+            font-family: 'Inter', sans-serif !important;
+            box-shadow: 0 12px 30px -10px rgba(10, 12, 18, 0.6) !important;
+        }
+
+        .sa2-tooltip::before {
+            display: none !important;
+        }
+
+        .sa2-tooltip .tt-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--accent);
+            margin-bottom: 2px;
+        }
+
+        .sa2-tooltip .tt-value {
+            font-size: 12.5px;
+            color: var(--text);
+        }
+
         /* Detail: frequency + span blocks */
         .block-label {
             font-family: 'Barlow Condensed', sans-serif;
@@ -545,11 +628,34 @@
         <select id="freq-select">
             <option value="weekday_am_peak">Weekday AM Peak</option>
             <option value="weekday_midday" selected>Weekday Midday</option>
-            <option value="weekday_offpeak">Weekday Offpeak</option>
+            <option value="weekday_offpeak">Weekday Evening</option>
             <option value="saturday_midday">Saturday Midday</option>
             <option value="sunday_midday">Sunday Midday</option>
         </select>
         <div class="freq-legend" id="freq-legend"></div>
+
+        <div id="sa2-control">
+            <p class="freq-label">Area shading shows</p>
+            <select id="sa2-select">
+                <option value="">Off (basemap only)</option>
+                <option value="bus400" selected>Any bus service within 400m</option>
+                <option value="bus800hq">High-quality bus service within 800m</option>
+                <option value="pt400">Any public transport within 400m</option>
+                <option value="pt800hq">High-quality public transport within 800m</option>
+                <option value="seifa_score">SEIFA score (socio-economic)</option>
+                <option value="seifa_decile">SEIFA decile (1=disadv., 10=advantaged)</option>
+                <option value="population">Population (2025 est.)</option>
+                <option value="dwellings">Dwellings (2025 est.)</option>
+            </select>
+            <div class="sa2-legend" id="sa2-legend">
+                <div class="sa2-gradient-bar" id="sa2-gradient-bar"></div>
+                <div class="sa2-legend-labels">
+                    <span id="sa2-legend-min">–</span>
+                    <span id="sa2-legend-max">–</span>
+                </div>
+                <div class="sa2-legend-caption" id="sa2-legend-caption"></div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -578,6 +684,14 @@
             });
 
             var canvasRenderer = L.canvas({ padding: 0.5 });
+            map.createPane('densityPane');
+            map.getPane('densityPane').style.zIndex = 300;
+
+            // SA2 choropleth sits above the basemap but below the route lines/halos,
+            // so it reads as a background layer.
+            map.createPane('sa2Pane');
+            map.getPane('sa2Pane').style.zIndex = 250;
+            var sa2Renderer = L.canvas({ pane: 'sa2Pane', padding: 0.3 });
 
             // ---- Frequency data ----
             var FREQ_URL = 'https://cdn.jsdelivr.net/gh/adambain014/FrequencyFinder@main/route_jsons/summary.json';
@@ -657,12 +771,15 @@
             function updateRouteVisibility() {
                 Object.keys(layersById).forEach(function (id) {
                     var layer = layersById[id];
+                    var densityLayer = densityLayersById[id];
                     var props = routesById[id].properties;
                     var shouldBeVisible = isRouteBucketVisible(props);
                     if (shouldBeVisible) {
+                        if (densityLayer && !map.hasLayer(densityLayer)) densityLayer.addTo(map);
                         if (!map.hasLayer(layer)) layer.addTo(map);
                     } else {
                         if (map.hasLayer(layer)) map.removeLayer(layer);
+                        if (densityLayer && map.hasLayer(densityLayer)) map.removeLayer(densityLayer);
                     }
                 });
                 if (activeId && !isRouteBucketVisible(routesById[activeId].properties)) {
@@ -728,6 +845,7 @@
             var countEl = document.getElementById('route-count');
 
             var layersById = {};
+            var densityLayersById = {};
             var routesById = {};
             var listRowsById = {};
             var activeId = null;
@@ -748,6 +866,18 @@
                     lineCap: 'round',
                     lineJoin: 'round',
                     renderer: canvasRenderer
+                };
+            }
+
+            function densityStyle(props) {
+                return {
+                    color: '#bcc8d7',
+                    weight: 2.2,
+                    opacity: 0.1,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                    renderer: canvasRenderer,
+                    interactive: false
                 };
             }
 
@@ -974,6 +1104,192 @@
 
             renderLegend();
 
+            // ---- SA2 background choropleth ----
+            // Data: ABS SA2 2021 boundaries joined to the "Improving bus services" dashboard export.
+            var SA2_URL = 'sa2_data.geojson';
+            var sa2Layer = null;
+            var currentSa2Metric = 'bus400';
+
+            var SA2_COLOR_STOPS = {
+                access: ['#c0392b', '#e67e22', '#f1c40f', '#7dbb54', '#1a8a4a'],   // red -> amber -> yellow -> green
+                seifa: ['#eef4fb', '#b7d3ea', '#6fa8d6', '#3573b0', '#0d3f70'],   // light -> dark blue
+                count: ['#2a2110', '#6b4a1a', '#a86d1f', '#d69331', '#FFB020']    // dark -> accent amber
+            };
+
+            var SA2_METRICS = {
+                bus400: {
+                    prop: '% dwellings within 400m of any bus service',
+                    label: 'Any bus service within 400m', format: 'percent',
+                    domain: [0, 1], palette: 'access',
+                    caption: 'Share of dwellings within 400m walk of any bus stop.'
+                },
+                bus800hq: {
+                    prop: '% dwellings with 800m of a high quality bus service',
+                    label: 'High-quality bus service within 800m', format: 'percent',
+                    domain: [0, 1], palette: 'access',
+                    caption: 'Share of dwellings within 800m of a high-frequency bus service.'
+                },
+                pt400: {
+                    prop: '% dwellings within 400m of any public transport service',
+                    label: 'Any public transport within 400m', format: 'percent',
+                    domain: [0, 1], palette: 'access',
+                    caption: 'Share of dwellings within 400m walk of any PT service (bus, train or tram).'
+                },
+                pt800hq: {
+                    prop: '% dwellings with 800m of a high quality public transport service',
+                    label: 'High-quality public transport within 800m', format: 'percent',
+                    domain: [0, 1], palette: 'access',
+                    caption: 'Share of dwellings within 800m of a high-frequency PT service.'
+                },
+                seifa_score: {
+                    prop: 'SEIFA_Score',
+                    label: 'SEIFA score (socio-economic)', format: 'score',
+                    domain: [830, 1160], palette: 'seifa',
+                    caption: 'ABS SEIFA Index of Relative Socio-economic Advantage/Disadvantage. Higher = more advantaged.'
+                },
+                seifa_decile: {
+                    prop: 'SEIFA_Decile',
+                    label: 'SEIFA decile', format: 'decile',
+                    domain: [1, 10], palette: 'seifa',
+                    caption: 'SEIFA decile, 1 = most disadvantaged 10% of areas nationally, 10 = least.'
+                },
+                population: {
+                    prop: 'population_2025',
+                    label: 'Population (2025 est.)', format: 'count',
+                    domain: [0, 37000], palette: 'count',
+                    caption: 'Estimated resident population by SA2, 2025.'
+                },
+                dwellings: {
+                    prop: 'dwellings_2025',
+                    label: 'Dwellings (2025 est.)', format: 'count',
+                    domain: [0, 21000], palette: 'count',
+                    caption: 'Estimated dwelling count by SA2, 2025.'
+                }
+            };
+
+            function hexToRgb(hex) {
+                var n = parseInt(hex.slice(1), 16);
+                return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+            }
+
+            function rgbToHex(rgb) {
+                return '#' + rgb.map(function (v) {
+                    return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+                }).join('');
+            }
+
+            function interpolatePalette(stops, t) {
+                t = Math.max(0, Math.min(1, t));
+                var n = stops.length - 1;
+                var seg = Math.min(n - 1, Math.floor(t * n));
+                var localT = (t * n) - seg;
+                var c0 = hexToRgb(stops[seg]);
+                var c1 = hexToRgb(stops[seg + 1]);
+                var rgb = c0.map(function (v, i) { return v + (c1[i] - v) * localT; });
+                return rgbToHex(rgb);
+            }
+
+            function sa2ColorForValue(metricKey, value) {
+                var m = SA2_METRICS[metricKey];
+                if (value === null || value === undefined || isNaN(value)) return '#3a4155';
+                var t = (value - m.domain[0]) / (m.domain[1] - m.domain[0]);
+                return interpolatePalette(SA2_COLOR_STOPS[m.palette], t);
+            }
+
+            function sa2FormatValue(format, value) {
+                if (value === null || value === undefined || isNaN(value)) return 'No data';
+                switch (format) {
+                    case 'percent': return Math.round(value * 100) + '%';
+                    case 'count': return Math.round(value).toLocaleString();
+                    case 'decile': return 'Decile ' + Math.round(value);
+                    case 'score': return Math.round(value).toLocaleString();
+                    default: return String(value);
+                }
+            }
+
+            function sa2StyleFor(metricKey) {
+                return function (feature) {
+                    if (!metricKey) return { opacity: 0, fillOpacity: 0 };
+                    var m = SA2_METRICS[metricKey];
+                    var val = feature.properties[m.prop];
+                    return {
+                        renderer: sa2Renderer,
+                        pane: 'sa2Pane',
+                        stroke: true,
+                        color: 'rgba(23, 27, 36, 0.35)',
+                        weight: 0.6,
+                        fillColor: sa2ColorForValue(metricKey, val),
+                        fillOpacity: 0.62
+                    };
+                };
+            }
+
+            function sa2TooltipHtml(metricKey, props) {
+                var m = SA2_METRICS[metricKey];
+                var val = props[m.prop];
+                return '<div class="tt-name">' + escapeHtmlGlobal(props.Area || props.SA2_CODE21) + '</div>' +
+                    '<div class="tt-value">' + escapeHtmlGlobal(m.label) + ': <strong>' + sa2FormatValue(m.format, val) + '</strong></div>';
+            }
+
+            function renderSa2Legend(metricKey) {
+                var legendEl = document.getElementById('sa2-legend');
+                var barEl = document.getElementById('sa2-gradient-bar');
+                var minEl = document.getElementById('sa2-legend-min');
+                var maxEl = document.getElementById('sa2-legend-max');
+                var capEl = document.getElementById('sa2-legend-caption');
+
+                if (!metricKey) {
+                    legendEl.classList.remove('visible');
+                    return;
+                }
+                var m = SA2_METRICS[metricKey];
+                var stops = SA2_COLOR_STOPS[m.palette];
+                barEl.style.background = 'linear-gradient(to right, ' + stops.join(', ') + ')';
+                minEl.textContent = sa2FormatValue(m.format, m.domain[0]);
+                maxEl.textContent = sa2FormatValue(m.format, m.domain[1]);
+                capEl.textContent = m.caption;
+                legendEl.classList.add('visible');
+            }
+
+            function updateSa2Display(metricKey) {
+                currentSa2Metric = metricKey;
+                renderSa2Legend(metricKey);
+                if (!sa2Layer) return;
+                var styleFn = sa2StyleFor(metricKey);
+                sa2Layer.eachLayer(function (layer) {
+                    layer.setStyle(styleFn(layer.feature));
+                    if (metricKey) {
+                        layer.unbindTooltip();
+                        layer.bindTooltip(sa2TooltipHtml(metricKey, layer.feature.properties), {
+                            sticky: true,
+                            className: 'sa2-tooltip',
+                            direction: 'top',
+                            offset: [0, -6]
+                        });
+                    } else {
+                        layer.unbindTooltip();
+                    }
+                });
+            }
+
+            document.getElementById('sa2-select').addEventListener('change', function () {
+                updateSa2Display(this.value);
+            });
+
+            var sa2Fetch = fetch(SA2_URL)
+                .then(function (r) { if (!r.ok) throw new Error('sa2 http ' + r.status); return r.json(); })
+                .then(function (fc) {
+                    sa2Layer = L.geoJSON(fc, {
+                        style: sa2StyleFor(currentSa2Metric),
+                        interactive: true
+                    }).addTo(map);
+                    updateSa2Display(currentSa2Metric);
+                })
+                .catch(function (err) {
+                    console.warn('Could not load SA2 background data:', err.message);
+                    document.getElementById('sa2-control').style.display = 'none';
+                });
+
             var freqFetch = fetch(FREQ_URL)
                 .then(function (r) { if (!r.ok) throw new Error('freq http ' + r.status); return r.json(); })
                 .catch(function (err) {
@@ -996,6 +1312,11 @@
                     var geoLayer = L.geoJSON(fc, {
                         style: function (f) { return baseStyle(f.properties); },
                         onEachFeature: function (f, layer) {
+                            densityLayersById[f.properties.route_id] = L.geoJSON(f, {
+                                pane: 'densityPane',
+                                style: densityStyle,
+                                interactive: false
+                            }).addTo(map);
                             layersById[f.properties.route_id] = layer;
                             layer.on('click', function () { selectRoute(f.properties.route_id, true); });
                             layer.on('mouseover', function () { previewRoute(f.properties.route_id); });
