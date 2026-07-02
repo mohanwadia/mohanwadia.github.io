@@ -446,6 +446,50 @@
             border-color: var(--accent);
         }
 
+        .sa2-hover-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .sa2-hover-toggle input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+            background: var(--ink-elevated);
+            border: 1px solid var(--hairline);
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .12s ease, border-color .12s ease;
+        }
+
+        .sa2-hover-toggle input[type="checkbox"]:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .sa2-hover-toggle input[type="checkbox"]:checked::after {
+            content: "";
+            width: 4px;
+            height: 8px;
+            border: solid var(--ink);
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg) translate(-1px, -1px);
+        }
+
+        .sa2-hover-toggle span {
+            font-size: 12.5px;
+            color: var(--text);
+        }
+
         .sa2-legend {
             margin-top: 10px;
             display: none;
@@ -649,6 +693,10 @@
                 <option value="population">Population (2025 est.)</option>
                 <option value="dwellings">Dwellings (2025 est.)</option>
             </select>
+            <label class="sa2-hover-toggle">
+                <input type="checkbox" id="sa2-hover-toggle-input" checked>
+                <span>Show stats on hover</span>
+            </label>
             <div class="sa2-legend" id="sa2-legend">
                 <div class="sa2-gradient-bar" id="sa2-gradient-bar"></div>
                 <div class="sa2-legend-labels">
@@ -848,6 +896,7 @@
 
             var layersById = {};
             var densityLayersById = {};
+            var hitLayersById = {};
             var routesById = {};
             var listRowsById = {};
             var activeId = null;
@@ -1116,6 +1165,7 @@
             var activeSa2Code = null;
             var hoveredSa2Code = null;
             var currentSa2Metric = 'bus400';
+            var showSa2StatsOnHover = true;
 
             var SA2_COLOR_STOPS = {
                 access: ['#c0392b', '#e67e22', '#f1c40f', '#7dbb54', '#1a8a4a'],   // red -> amber -> yellow -> green
@@ -1314,6 +1364,10 @@
                     '<div class="tt-value">' + escapeHtmlGlobal(m.label) + ': <strong>' + sa2FormatValue(m.format, val) + '</strong></div>';
             }
 
+            function sa2NameOnlyTooltipHtml(props) {
+                return '<div class="tt-name">' + escapeHtmlGlobal(props.Area || props.SA2_CODE21) + '</div>';
+            }
+
             function renderSa2Legend(metricKey) {
                 var legendEl = document.getElementById('sa2-legend');
                 var barEl = document.getElementById('sa2-gradient-bar');
@@ -1416,11 +1470,13 @@
             }
 
             function showSa2Tooltip(code, clientX, clientY) {
-                if (!currentSa2Metric) return;
+                if (!showSa2StatsOnHover) return;
                 var layer = sa2LayersByCode[code];
                 if (!layer) return;
                 var el = document.getElementById('sa2-hover-tooltip');
-                el.innerHTML = sa2TooltipHtml(currentSa2Metric, layer.feature.properties);
+                el.innerHTML = currentSa2Metric
+                    ? sa2TooltipHtml(currentSa2Metric, layer.feature.properties)
+                    : sa2NameOnlyTooltipHtml(layer.feature.properties);
                 el.style.display = 'block';
                 positionSa2Tooltip(clientX, clientY);
             }
@@ -1507,6 +1563,11 @@
                 updateSa2Display(this.value);
             });
 
+            document.getElementById('sa2-hover-toggle-input').addEventListener('change', function () {
+                showSa2StatsOnHover = this.checked;
+                if (!showSa2StatsOnHover) hideSa2Tooltip();
+            });
+
             var sa2Fetch = fetch(SA2_URL)
                 .then(function (r) { if (!r.ok) throw new Error('sa2 http ' + r.status); return r.json(); })
                 .then(function (fc) {
@@ -1562,9 +1623,28 @@
                                 interactive: false
                             }).addTo(map);
                             layersById[f.properties.route_id] = layer;
-                            layer.on('click', function (e) { L.DomEvent.stopPropagation(e); selectRoute(f.properties.route_id, true); });
-                            layer.on('mouseover', function () { previewRoute(f.properties.route_id); });
-                            layer.on('mouseout', function () { unpreviewRoute(f.properties.route_id); });
+                            layer.options.interactive = false;
+
+                            // Invisible, much-wider line stacked on top of the visible route so the
+                            // clickable/hoverable area is generous even for thin, low-frequency lines.
+                            // Leaflet's canvas hit-testing uses the layer's own weight for tolerance
+                            // regardless of its (zero) opacity, so this doesn't change how anything looks.
+                            var hitLayer = L.geoJSON(f, {
+                                style: function () {
+                                    return {
+                                        color: '#000',
+                                        weight: 18,
+                                        opacity: 0,
+                                        lineCap: 'round',
+                                        lineJoin: 'round',
+                                        renderer: canvasRenderer
+                                    };
+                                }
+                            }).addTo(map);
+                            hitLayersById[f.properties.route_id] = hitLayer;
+                            hitLayer.on('click', function (e) { L.DomEvent.stopPropagation(e); selectRoute(f.properties.route_id, true); });
+                            hitLayer.on('mouseover', function () { previewRoute(f.properties.route_id); });
+                            hitLayer.on('mouseout', function () { unpreviewRoute(f.properties.route_id); });
                         }
                     }).addTo(map);
 
