@@ -273,6 +273,109 @@
     margin-right:6px;
   }
 
+  /* ---------- Frequency control ---------- */
+  #freq-control{
+    position:absolute;
+    top:96px; right:16px;
+    width:238px;
+    background:var(--ink);
+    border:1px solid var(--hairline);
+    border-radius:14px;
+    box-shadow:0 20px 50px -18px rgba(10,12,18,0.55), 0 2px 8px rgba(10,12,18,0.35);
+    padding:14px 16px 16px;
+    z-index:1000;
+  }
+  .freq-label{
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 8px;
+  }
+  #freq-select{
+    width:100%;
+    background:var(--ink-elevated);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:8px 10px;
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    outline:none;
+    cursor:pointer;
+  }
+  #freq-select:focus{ border-color:var(--accent); }
+  .freq-legend{
+    margin-top:12px;
+    padding-top:12px;
+    border-top:1px solid var(--hairline);
+  }
+  .freq-legend-row{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:3px 0;
+  }
+  .freq-swatch{
+    flex-shrink:0;
+    width:26px;
+    height:0;
+    border-top-style:solid;
+    border-radius:2px;
+  }
+  .freq-swatch.dashed{ border-top-style:dashed; }
+  .freq-legend-text{
+    font-size:11.5px;
+    color:var(--text-muted);
+  }
+
+  /* Detail: frequency + span blocks */
+  .block-label{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:18px 0 8px;
+  }
+  .freq-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:7px 10px;
+    border-radius:7px;
+    font-size:13px;
+  }
+  .freq-row.current{ background:var(--accent-dim); }
+  .freq-row-period{ color:var(--text); }
+  .freq-row-value{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--text-muted);
+    font-size:12.5px;
+  }
+  .freq-row.current .freq-row-value{ color:var(--accent); }
+  .span-row{
+    padding:10px 12px;
+    background:var(--ink-elevated);
+    border-radius:9px;
+    margin-bottom:8px;
+  }
+  .span-row-label{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin:0 0 3px;
+  }
+  .span-row-value{
+    font-size:13.5px;
+    color:var(--text);
+    font-family:'IBM Plex Mono', monospace;
+  }
+
   /* Mobile */
   @media (max-width: 680px){
     :root{ --panel-w:100%; }
@@ -281,6 +384,10 @@
       max-height:46vh;
     }
     h1{ font-size:22px; }
+    #freq-control{
+      top:auto; right:12px; left:12px; width:auto;
+      bottom:12px;
+    }
   }
 </style>
 </head>
@@ -307,6 +414,18 @@
     Route paths from <a href="https://discover.data.vic.gov.au/dataset/timetable-and-geographic-information-gtfs" target="_blank" rel="noopener">PTV GTFS timetable data</a>, Dept. of Transport &amp; Planning Victoria.
     Basemap © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>, © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
   </div>
+</div>
+
+<div id="freq-control">
+  <p class="freq-label">Line width shows frequency</p>
+  <select id="freq-select">
+    <option value="weekday_am_peak">Weekday AM Peak</option>
+    <option value="weekday_midday" selected>Weekday Midday</option>
+    <option value="weekday_offpeak">Weekday Offpeak</option>
+    <option value="saturday_midday">Saturday Midday</option>
+    <option value="sunday_midday">Sunday Midday</option>
+  </select>
+  <div class="freq-legend" id="freq-legend"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -336,6 +455,111 @@
 
   var canvasRenderer = L.canvas({ padding:0.5 });
 
+  // ---- Frequency data ----
+  var FREQ_URL = 'https://cdn.jsdelivr.net/gh/adambain014/FrequencyFinder@main/route_jsons/summary.json';
+  var freqById = {};       // route_number -> summary object
+  var currentPeriod = 'weekday_midday';
+
+  var PERIODS = {
+    weekday_am_peak:{ label:'Weekday AM Peak' },
+    weekday_midday: { label:'Weekday Midday' },
+    weekday_offpeak:{ label:'Weekday Offpeak' },
+    saturday_midday:{ label:'Saturday Midday' },
+    sunday_midday:  { label:'Sunday Midday' }
+  };
+
+  // Bucketed line-weight scale: lower average wait (more frequent) = thicker line.
+  var FREQ_BUCKETS = [
+    { max:10,       weight:7.5, opacity:0.92, label:'10 min or less' },
+    { max:15,       weight:6,   opacity:0.9,  label:'11–15 min' },
+    { max:20,       weight:4.6, opacity:0.88, label:'16–20 min' },
+    { max:30,       weight:3.2, opacity:0.85, label:'21–30 min' },
+    { max:60,       weight:2.1, opacity:0.8,  label:'31–60 min' },
+    { max:Infinity, weight:1.3, opacity:0.62, label:'Peak only / 60+ min' }
+  ];
+  var NO_DATA_BUCKET = { weight:1.1, opacity:0.22, dash:'2,5', label:'No scheduled service' };
+
+  function freqBucket(min){
+    if(min === null || min === undefined || isNaN(min)) return NO_DATA_BUCKET;
+    for(var i=0;i<FREQ_BUCKETS.length;i++){ if(min <= FREQ_BUCKETS[i].max) return FREQ_BUCKETS[i]; }
+    return FREQ_BUCKETS[FREQ_BUCKETS.length-1];
+  }
+
+  // Extracts the minutes-average-wait value for a given period from a route's summary entry.
+  function periodValue(entry, period){
+    if(!entry) return null;
+    var freqSummary = entry.frequency_summary || [];
+    var byDay = {};
+    freqSummary.forEach(function(row){ byDay[row.day] = row; });
+    var peak = (entry.peak_medians && entry.peak_medians[0]) || {};
+
+    switch(period){
+      case 'weekday_am_peak':
+        return numOrNull(peak['Median AM Peak Wait']);
+      case 'weekday_midday':
+        return byDay.Monday ? numOrNull(byDay.Monday.daytime) : null;
+      case 'weekday_offpeak':
+        return byDay.Monday ? numOrNull(byDay.Monday.evening) : null;
+      case 'saturday_midday':
+        return byDay.Saturday ? numOrNull(byDay.Saturday.daytime) : null;
+      case 'sunday_midday':
+        return byDay.Sunday ? numOrNull(byDay.Sunday.daytime) : null;
+      default:
+        return null;
+    }
+  }
+
+  function numOrNull(v){
+    return (typeof v === 'number' && !isNaN(v)) ? v : null;
+  }
+
+  function freqStyleForRoute(props){
+    var entry = freqById[props.short_name];
+    var val = periodValue(entry, currentPeriod);
+    var bucket = freqBucket(val);
+    var style = { weight:bucket.weight, opacity:bucket.opacity };
+    if(bucket.dash){ style.dashArray = bucket.dash; } else { style.dashArray = null; }
+    return style;
+  }
+
+  function renderLegend(){
+    var el = document.getElementById('freq-legend');
+    if(!el) return;
+    var rows = FREQ_BUCKETS.concat([NO_DATA_BUCKET]);
+    el.innerHTML = rows.map(function(b){
+      var w = Math.max(2, Math.min(6, b.weight));
+      var dashClass = b.dash ? 'freq-swatch dashed' : 'freq-swatch';
+      return '<div class="freq-legend-row">' +
+        '<span class="' + dashClass + '" style="border-top-width:' + w + 'px;border-top-color:#9AA3B8;"></span>' +
+        '<span class="freq-legend-text">' + escapeHtmlGlobal(b.label) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function escapeHtmlGlobal(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // Converts GTFS-style minutes-since-midnight (can exceed 1440) into a 12-hour clock string.
+  function minutesToClock(mins){
+    if(mins === null || mins === undefined || isNaN(mins)) return '—';
+    var wrapped = ((mins % 1440) + 1440) % 1440;
+    var nextDay = mins >= 1440;
+    var h = Math.floor(wrapped / 60);
+    var m = Math.round(wrapped % 60);
+    var period = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12; if(h12 === 0) h12 = 12;
+    var mm = (m < 10 ? '0' : '') + m;
+    return h12 + ':' + mm + ' ' + period + (nextDay ? ' (+1)' : '');
+  }
+
+  function fmtFreqValue(min){
+    if(min === null || min === undefined || isNaN(min)) return 'No service';
+    return 'Every ' + Math.round(min) + ' min';
+  }
+
   var listEl = document.getElementById('list');
   var detailEl = document.getElementById('detail');
   var searchEl = document.getElementById('search');
@@ -353,10 +577,12 @@
   }
 
   function baseStyle(props){
+    var fs = freqStyleForRoute(props);
     return {
       color: props.color || '#333',
-      weight: 2.4,
-      opacity: 0.8,
+      weight: fs.weight,
+      opacity: fs.opacity,
+      dashArray: fs.dashArray,
       lineCap:'round',
       lineJoin:'round',
       renderer: canvasRenderer
@@ -374,7 +600,8 @@
     Object.keys(layersById).forEach(function(k){
       var layer = layersById[k];
       if(k === id){
-        layer.setStyle({ weight:5, opacity:1 });
+        var fs = freqStyleForRoute(routesById[k].properties);
+        layer.setStyle({ weight:Math.max(fs.weight, 5), opacity:1, dashArray:null });
         layer.bringToFront();
       } else {
         layer.setStyle({ weight:2, opacity:0.12 });
@@ -444,26 +671,29 @@
     order.forEach(function(id){
       var layer = layersById[id];
       if(id === activeId) return;
+      var fs = freqStyleForRoute(routesById[id].properties);
       if(!q){
-        layer.setStyle({ opacity:0.8, weight:2.4 });
+        layer.setStyle({ opacity:fs.opacity, weight:fs.weight, dashArray:fs.dashArray });
       } else if(matchedIds.indexOf(id) !== -1){
-        layer.setStyle({ opacity:0.9, weight:2.8 });
+        layer.setStyle({ opacity:Math.min(fs.opacity + 0.1, 1), weight:fs.weight + 0.4, dashArray:fs.dashArray });
       } else {
-        layer.setStyle({ opacity:0.06, weight:1.4 });
+        layer.setStyle({ opacity:0.06, weight:1.4, dashArray:fs.dashArray });
       }
     });
   }
 
   function previewRoute(id){
     if(id === activeId) return;
-    layersById[id].setStyle({ weight:4.5, opacity:1 });
+    var fs = freqStyleForRoute(routesById[id].properties);
+    layersById[id].setStyle({ weight:Math.max(fs.weight + 1.5, 4.5), opacity:1, dashArray:null });
     layersById[id].bringToFront();
   }
   function unpreviewRoute(id){
     if(id === activeId) return;
     var q = searchEl.value.trim();
     if(!q){
-      layersById[id].setStyle({ weight:2.4, opacity:0.8 });
+      var fs = freqStyleForRoute(routesById[id].properties);
+      layersById[id].setStyle({ weight:fs.weight, opacity:fs.opacity, dashArray:fs.dashArray });
     } else {
       renderList(q);
     }
@@ -495,13 +725,48 @@
       dirHtml = '<div class="direction"><p class="direction-value">No headsign data available.</p></div>';
     }
 
+    var freqEntry = freqById[props.short_name];
+    var freqHtml = '<p class="block-label">Frequency</p>';
+    if(freqEntry){
+      Object.keys(PERIODS).forEach(function(key){
+        var val = periodValue(freqEntry, key);
+        freqHtml += '<div class="freq-row' + (key === currentPeriod ? ' current' : '') + '">' +
+          '<span class="freq-row-period">' + escapeHtml(PERIODS[key].label) + '</span>' +
+          '<span class="freq-row-value">' + escapeHtml(fmtFreqValue(val)) + '</span>' +
+          '</div>';
+      });
+    } else {
+      freqHtml += '<div class="freq-row"><span class="freq-row-period">No frequency data available for this route.</span></div>';
+    }
+
+    var spanHtml = '<p class="block-label">Service span</p>';
+    if(freqEntry && freqEntry.span_stats){
+      var spanByDay = {};
+      freqEntry.span_stats.forEach(function(row){ spanByDay[row.day] = row; });
+      var spanGroups = [
+        { label:'Weekday', day:'monday' },
+        { label:'Saturday', day:'saturday' },
+        { label:'Sunday', day:'sunday' }
+      ];
+      spanGroups.forEach(function(g){
+        var row = spanByDay[g.day];
+        if(!row) return;
+        spanHtml += '<div class="span-row">' +
+          '<p class="span-row-label">' + escapeHtml(g.label) + '</p>' +
+          '<p class="span-row-value">' + minutesToClock(row.span_start) + ' – ' + minutesToClock(row.span_end) + '</p>' +
+          '</div>';
+      });
+    } else {
+      spanHtml += '<div class="span-row"><p class="span-row-value">No span data available.</p></div>';
+    }
+
     detailEl.innerHTML =
       '<button class="back-btn" id="back-btn">← All routes</button>' +
       '<div class="detail-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtml(props.short_name) + '</div>' +
       '<h2 class="detail-title">' + escapeHtml(props.long_name) + '</h2>' +
-      '<div class="stat"><span class="stat-label">Route ID</span><span class="stat-value">' + escapeHtml(props.route_id) + '</span></div>' +
-      '<div class="stat"><span class="stat-label">Scheduled trips</span><span class="stat-value">' + fmtInt(props.trip_count) + '</span></div>' +
-      dirHtml;
+      dirHtml +
+      spanHtml +
+      freqHtml;
 
     document.getElementById('back-btn').addEventListener('click', clearSelection);
 
@@ -540,9 +805,34 @@
     renderList(searchEl.value);
   });
 
-  fetch('routes.geojson')
-    .then(function(r){ return r.json(); })
-    .then(function(fc){
+  var freqSelectEl = document.getElementById('freq-select');
+  freqSelectEl.value = currentPeriod;
+  freqSelectEl.addEventListener('change', function(){
+    currentPeriod = freqSelectEl.value;
+    if(activeId){
+      selectRoute(activeId, false); // restyles map + refreshes detail panel for new period
+    } else {
+      resetAllStyles();
+    }
+  });
+
+  renderLegend();
+
+  var freqFetch = fetch(FREQ_URL)
+    .then(function(r){ if(!r.ok) throw new Error('freq http ' + r.status); return r.json(); })
+    .catch(function(err){
+      console.warn('Could not load frequency data:', err.message);
+      return {};
+    });
+
+  var routesFetch = fetch('routes.geojson')
+    .then(function(r){ return r.json(); });
+
+  Promise.all([routesFetch, freqFetch])
+    .then(function(results){
+      var fc = results[0];
+      freqById = results[1] || {};
+
       fc.features.forEach(function(f){
         routesById[f.properties.route_id] = f;
       });
