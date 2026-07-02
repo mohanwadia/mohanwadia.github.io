@@ -542,6 +542,22 @@
             font-size: 13px;
             color: var(--accent);
             margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .sa2-tooltip .tt-badge {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 5px;
+            font-size: 12.5px;
+            font-weight: 700;
         }
 
         .sa2-tooltip .tt-value {
@@ -643,6 +659,7 @@
     <div id="map"></div>
 
     <div id="sa2-hover-tooltip" class="sa2-tooltip" style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:220px;"></div>
+    <div id="route-hover-tooltip" class="sa2-tooltip" style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:240px;"></div>
 
     <div id="panel">
         <div class="panel-head">
@@ -695,7 +712,7 @@
             </select>
             <label class="sa2-hover-toggle">
                 <input type="checkbox" id="sa2-hover-toggle-input" checked>
-                <span>Show stats on hover</span>
+                <span>Show hover details</span>
             </label>
             <div class="sa2-legend" id="sa2-legend">
                 <div class="sa2-gradient-bar" id="sa2-gradient-bar"></div>
@@ -1132,8 +1149,23 @@
 
             function updateUrl(id) {
                 var url = new URL(window.location);
-                if (id) { url.searchParams.set('route', routesById[id].properties.short_name); }
-                else { url.searchParams.delete('route'); }
+                if (id) {
+                    url.searchParams.set('route', routesById[id].properties.short_name);
+                    url.searchParams.delete('sa2');
+                } else {
+                    url.searchParams.delete('route');
+                }
+                window.history.replaceState({}, '', url);
+            }
+
+            function updateSa2Url(code) {
+                var url = new URL(window.location);
+                if (code) {
+                    url.searchParams.set('sa2', code);
+                    url.searchParams.delete('route');
+                } else {
+                    url.searchParams.delete('sa2');
+                }
                 window.history.replaceState({}, '', url);
             }
 
@@ -1165,7 +1197,8 @@
             var activeSa2Code = null;
             var hoveredSa2Code = null;
             var currentSa2Metric = 'bus400';
-            var showSa2StatsOnHover = true;
+            var hoverEffectsEnabled = true;
+            var routeHoverId = null; // route currently hovered on the map, used to suppress SA2 hover feedback
 
             var SA2_COLOR_STOPS = {
                 access: ['#c0392b', '#e67e22', '#f1c40f', '#7dbb54', '#1a8a4a'],   // red -> amber -> yellow -> green
@@ -1364,8 +1397,15 @@
                     '<div class="tt-value">' + escapeHtmlGlobal(m.label) + ': <strong>' + sa2FormatValue(m.format, val) + '</strong></div>';
             }
 
-            function sa2NameOnlyTooltipHtml(props) {
-                return '<div class="tt-name">' + escapeHtmlGlobal(props.Area || props.SA2_CODE21) + '</div>';
+            function routeTooltipHtml(id) {
+                var props = routesById[id].properties;
+                var freqEntry = freqById[props.short_name];
+                var val = periodValue(freqEntry, currentPeriod);
+                return '<div class="tt-name">' +
+                    '<span class="tt-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtmlGlobal(props.short_name) + '</span>' +
+                    escapeHtmlGlobal(props.long_name) +
+                    '</div>' +
+                    '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[currentPeriod].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
             }
 
             function renderSa2Legend(metricKey) {
@@ -1454,6 +1494,7 @@
                 }
                 document.getElementById('panel').style.display = 'flex';
                 renderSa2Detail(code);
+                updateSa2Url(code);
             }
 
             function clearSa2Selection() {
@@ -1467,22 +1508,21 @@
                 document.getElementById('panel').style.display = 'none';
                 detailEl.style.display = 'none';
                 detailEl.innerHTML = '';
+                updateSa2Url(null);
             }
 
             function showSa2Tooltip(code, clientX, clientY) {
-                if (!showSa2StatsOnHover) return;
+                if (!hoverEffectsEnabled) return;
+                if (!currentSa2Metric) return; // never show a bare "name only" tooltip — only when a statistic is selected
                 var layer = sa2LayersByCode[code];
                 if (!layer) return;
                 var el = document.getElementById('sa2-hover-tooltip');
-                el.innerHTML = currentSa2Metric
-                    ? sa2TooltipHtml(currentSa2Metric, layer.feature.properties)
-                    : sa2NameOnlyTooltipHtml(layer.feature.properties);
+                el.innerHTML = sa2TooltipHtml(currentSa2Metric, layer.feature.properties);
                 el.style.display = 'block';
-                positionSa2Tooltip(clientX, clientY);
+                positionTooltipEl(el, clientX, clientY);
             }
 
-            function positionSa2Tooltip(clientX, clientY) {
-                var el = document.getElementById('sa2-hover-tooltip');
+            function positionTooltipEl(el, clientX, clientY) {
                 var flipX = clientX > window.innerWidth - 240;
                 var flipY = clientY < 100;
                 el.style.left = flipX ? '' : (clientX + 16) + 'px';
@@ -1491,8 +1531,28 @@
                 el.style.transform = flipY ? 'translateY(0)' : 'translateY(-100%)';
             }
 
+            function positionSa2Tooltip(clientX, clientY) {
+                positionTooltipEl(document.getElementById('sa2-hover-tooltip'), clientX, clientY);
+            }
+
             function hideSa2Tooltip() {
                 document.getElementById('sa2-hover-tooltip').style.display = 'none';
+            }
+
+            function showRouteTooltip(id, clientX, clientY) {
+                if (!hoverEffectsEnabled) return;
+                var el = document.getElementById('route-hover-tooltip');
+                el.innerHTML = routeTooltipHtml(id);
+                el.style.display = 'block';
+                positionTooltipEl(el, clientX, clientY);
+            }
+
+            function positionRouteTooltip(clientX, clientY) {
+                positionTooltipEl(document.getElementById('route-hover-tooltip'), clientX, clientY);
+            }
+
+            function hideRouteTooltip() {
+                document.getElementById('route-hover-tooltip').style.display = 'none';
             }
 
             function setupSa2Interaction() {
@@ -1501,6 +1561,26 @@
                 var rafScheduled = false;
 
                 function handleMove(latlng, clientX, clientY) {
+                    if (!hoverEffectsEnabled) {
+                        if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                            sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                        }
+                        hoveredSa2Code = null;
+                        hideSa2Tooltip();
+                        mapContainer.style.cursor = '';
+                        return;
+                    }
+
+                    if (routeHoverId) {
+                        // A route is being hovered — only the route should light up, so suppress SA2 hover feedback.
+                        if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                            sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                        }
+                        hoveredSa2Code = null;
+                        hideSa2Tooltip();
+                        return;
+                    }
+
                     var code = findSa2AtLatLng(latlng);
 
                     if (code === hoveredSa2Code) {
@@ -1564,8 +1644,20 @@
             });
 
             document.getElementById('sa2-hover-toggle-input').addEventListener('change', function () {
-                showSa2StatsOnHover = this.checked;
-                if (!showSa2StatsOnHover) hideSa2Tooltip();
+                hoverEffectsEnabled = this.checked;
+                if (!hoverEffectsEnabled) {
+                    hideSa2Tooltip();
+                    hideRouteTooltip();
+                    if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                        sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                    }
+                    hoveredSa2Code = null;
+                    if (routeHoverId && layersById[routeHoverId] && routeHoverId !== activeId) {
+                        unpreviewRoute(routeHoverId);
+                    }
+                    routeHoverId = null;
+                    map.getContainer().style.cursor = '';
+                }
             });
 
             var sa2Fetch = fetch(SA2_URL)
@@ -1589,6 +1681,13 @@
 
                     updateSa2Display(currentSa2Metric);
                     setupSa2Interaction();
+
+                    // deep-link support: ?sa2=213011343
+                    var sa2Params = new URLSearchParams(window.location.search);
+                    var wantedSa2 = sa2Params.get('sa2');
+                    if (wantedSa2 && sa2LayersByCode[wantedSa2]) {
+                        selectSa2(wantedSa2);
+                    }
                 })
                 .catch(function (err) {
                     console.warn('Could not load SA2 background data:', err.message);
@@ -1643,8 +1742,25 @@
                             }).addTo(map);
                             hitLayersById[f.properties.route_id] = hitLayer;
                             hitLayer.on('click', function (e) { L.DomEvent.stopPropagation(e); selectRoute(f.properties.route_id, true); });
-                            hitLayer.on('mouseover', function () { previewRoute(f.properties.route_id); });
-                            hitLayer.on('mouseout', function () { unpreviewRoute(f.properties.route_id); });
+                            hitLayer.on('mouseover', function (e) {
+                                if (!hoverEffectsEnabled) return;
+                                routeHoverId = f.properties.route_id;
+                                previewRoute(f.properties.route_id);
+                                showRouteTooltip(f.properties.route_id, e.originalEvent.clientX, e.originalEvent.clientY);
+                                map.getContainer().style.cursor = 'pointer';
+                            });
+                            hitLayer.on('mousemove', function (e) {
+                                if (!hoverEffectsEnabled || routeHoverId !== f.properties.route_id) return;
+                                positionRouteTooltip(e.originalEvent.clientX, e.originalEvent.clientY);
+                            });
+                            hitLayer.on('mouseout', function () {
+                                if (routeHoverId === f.properties.route_id) {
+                                    routeHoverId = null;
+                                    map.getContainer().style.cursor = '';
+                                }
+                                unpreviewRoute(f.properties.route_id);
+                                hideRouteTooltip();
+                            });
                         }
                     }).addTo(map);
 
