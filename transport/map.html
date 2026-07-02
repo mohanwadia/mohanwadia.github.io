@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>Melbourne Bus Routes — mohanwadia.com</title>
+    <title>Melbourne Bus &amp; Tram Routes — mohanwadia.com</title>
     <meta name="description"
-        content="Every metropolitan Melbourne bus route, drawn from PTV GTFS schedule data. Click a route to see its path and timetable details.">
+        content="Every metropolitan Melbourne bus and tram route, drawn from PTV GTFS schedule data. Click a route to see its path and timetable details.">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -217,28 +217,21 @@
             padding: 18px 20px 20px;
         }
 
-        .detail-close-btn {
+        .back-btn {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
+            gap: 6px;
+            background: none;
             border: none;
-            border-radius: 999px;
-            background: var(--ink-elevated);
             color: var(--text-muted);
             font-family: 'Inter', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 12.5px;
+            font-weight: 500;
             cursor: pointer;
-            padding: 0;
-            margin-left: auto;
-            margin-bottom: 12px;
-            transition: background .12s ease, color .12s ease;
+            padding: 0 0 16px;
         }
 
-        .detail-close-btn:hover {
-            background: var(--accent-dim);
+        .back-btn:hover {
             color: var(--accent);
         }
 
@@ -427,6 +420,21 @@
         .freq-legend-text {
             font-size: 11.5px;
             color: var(--text-muted);
+        }
+
+        /* ---------- Route type control ---------- */
+        #type-control {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--hairline);
+        }
+
+        #type-control .sa2-hover-toggle {
+            margin-top: 6px;
+        }
+
+        #type-control .sa2-hover-toggle:first-of-type {
+            margin-top: 8px;
         }
 
         /* ---------- SA2 background data control ---------- */
@@ -665,15 +673,13 @@
 
     <div id="map"></div>
 
-    <div id="sa2-hover-tooltip" class="sa2-tooltip"
-        style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:220px;"></div>
-    <div id="route-hover-tooltip" class="sa2-tooltip"
-        style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:240px;"></div>
+    <div id="sa2-hover-tooltip" class="sa2-tooltip" style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:220px;"></div>
+    <div id="route-hover-tooltip" class="sa2-tooltip" style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:240px;"></div>
 
     <div id="panel">
         <div class="panel-head">
             <p class="eyebrow">Melbourne Transit</p>
-            <h1>Bus Routes</h1>
+            <h1>Bus &amp; Tram Routes</h1>
             <p class="sub"><span id="route-count">–</span> routes · PTV GTFS schedule data</p>
         </div>
 
@@ -705,6 +711,18 @@
             <option value="sunday_midday">Sunday Midday</option>
         </select>
         <div class="freq-legend" id="freq-legend"></div>
+
+        <div id="type-control">
+            <p class="freq-label">Route type</p>
+            <label class="sa2-hover-toggle">
+                <input type="checkbox" class="route-type-toggle" data-type="bus" checked>
+                <span>Bus</span>
+            </label>
+            <label class="sa2-hover-toggle">
+                <input type="checkbox" class="route-type-toggle" data-type="tram" checked>
+                <span>Tram</span>
+            </label>
+        </div>
 
         <div id="sa2-control">
             <p class="freq-label">Area shading shows</p>
@@ -771,8 +789,15 @@
 
             // ---- Frequency data ----
             var FREQ_URL = 'https://cdn.jsdelivr.net/gh/adambain014/FrequencyFinder@main/route_jsons/summary.json';
-            var freqById = {};       // route_number -> summary object
+            // freqById is namespaced by route_type ('bus' / 'tram') then route_number, since bus and
+            // tram routes can share the same short_name (e.g. bus 6 vs tram 6) and the source data
+            // is disambiguated by its own "mode_type" field (3 = tram, 4 = bus).
+            var freqById = { bus: {}, tram: {} };
+            var MODE_TYPE_TO_ROUTE_TYPE = { '3': 'tram', '4': 'bus' };
             var currentPeriod = 'weekday_midday';
+
+            // ---- Route type visibility (Bus / Tram checkboxes) ----
+            var routeTypeVisibility = { bus: true, tram: true };
 
             var PERIODS = {
                 weekday_am_peak: { label: 'Weekday AM Peak' },
@@ -827,8 +852,13 @@
                 return (typeof v === 'number' && !isNaN(v)) ? v : null;
             }
 
+            function freqEntryForRoute(props) {
+                var byType = freqById[props.route_type];
+                return byType ? byType[props.short_name] : undefined;
+            }
+
             function freqStyleForRoute(props) {
-                var entry = freqById[props.short_name];
+                var entry = freqEntryForRoute(props);
                 var val = periodValue(entry, currentPeriod);
                 var bucket = freqBucket(val);
                 var style = { weight: bucket.weight, opacity: bucket.opacity, color: bucket.color || props.color || '#333' };
@@ -837,7 +867,8 @@
             }
 
             function isRouteBucketVisible(props) {
-                var entry = freqById[props.short_name];
+                if (!routeTypeVisibility[props.route_type]) return false;
+                var entry = freqEntryForRoute(props);
                 var val = periodValue(entry, currentPeriod);
                 if (val === null || val === undefined || val === 0) return false;
                 var bucket = freqBucket(val);
@@ -1073,15 +1104,6 @@
             }
             function unpreviewRoute(id) {
                 if (id === activeId) return;
-                if (activeId) {
-                    var q = searchEl.value.trim();
-                    if (!q) {
-                        layersById[id].setStyle({ weight: 2, opacity: 0.12, dashArray: null });
-                    } else {
-                        renderList(q);
-                    }
-                    return;
-                }
                 var q = searchEl.value.trim();
                 if (!q) {
                     var fs = freqStyleForRoute(routesById[id].properties);
@@ -1106,7 +1128,7 @@
 
                 detailEl.style.display = 'block';
 
-                var freqEntry = freqById[props.short_name];
+                var freqEntry = freqEntryForRoute(props);
                 var freqHtml = '<p class="block-label">Frequency</p>';
                 if (freqEntry) {
                     Object.keys(PERIODS).forEach(function (key) {
@@ -1142,9 +1164,7 @@
                 }
 
                 detailEl.innerHTML =
-                    '<div style="display:flex;justify-content:flex-end;">' +
-                    '<button class="detail-close-btn" id="back-btn" aria-label="Close route details">×</button>' +
-                    '</div>' +
+                    '<button class="back-btn" id="back-btn">← Back  </button>' +
                     '<div class="detail-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtml(props.short_name) + '</div>' +
                     '<h2 class="detail-title">' + escapeHtml(props.long_name) + '</h2>' +
                     spanHtml +
@@ -1215,6 +1235,13 @@
             });
 
             renderLegend();
+
+            document.querySelectorAll('.route-type-toggle').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    routeTypeVisibility[this.dataset.type] = this.checked;
+                    updateRouteVisibility();
+                });
+            });
 
             // ---- SA2 background choropleth ----
             // Data: ABS SA2 2021 boundaries joined to the "Improving bus services" dashboard export.
@@ -1427,7 +1454,7 @@
 
             function routeTooltipHtml(id) {
                 var props = routesById[id].properties;
-                var freqEntry = freqById[props.short_name];
+                var freqEntry = freqEntryForRoute(props);
                 var val = periodValue(freqEntry, currentPeriod);
                 return '<div class="tt-name">' +
                     '<span class="tt-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtmlGlobal(props.short_name) + '</span>' +
@@ -1497,9 +1524,7 @@
 
                 detailEl.style.display = 'block';
                 detailEl.innerHTML =
-                    '<div style="display:flex;justify-content:flex-end;">' +
-                    '<button class="detail-close-btn" id="sa2-back-btn" aria-label="Close SA2 details">×</button>' +
-                    '</div>' +
+                    '<button class="back-btn" id="sa2-back-btn">← Back  </button>' +
                     '<h2 class="detail-title">' + escapeHtml(props.Area) + '</h2>' +
                     '<p class="sub" style="margin:-10px 0 16px;">SA2 ' + escapeHtml(props.SA2_CODE21) + '</p>' +
                     sa2FullProfileHtml(props);
@@ -1742,7 +1767,14 @@
             Promise.all([routesFetch, freqFetch])
                 .then(function (results) {
                     var fc = results[0];
-                    freqById = results[1] || {};
+                    var rawFreq = results[1] || {};
+                    freqById = { bus: {}, tram: {} };
+                    Object.keys(rawFreq).forEach(function (key) {
+                        var entry = rawFreq[key];
+                        var routeType = MODE_TYPE_TO_ROUTE_TYPE[entry && entry.mode_type];
+                        if (!routeType) return; // unknown mode (e.g. train) — not drawn on this map
+                        freqById[routeType][entry.route_number || key] = entry;
+                    });
 
                     fc.features.forEach(function (f) {
                         routesById[f.properties.route_id] = f;
