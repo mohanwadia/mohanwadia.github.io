@@ -735,6 +735,79 @@
             color: var(--text);
         }
 
+        /* Multi-route hover/picker tooltip (shown when several visible routes overlap) */
+        .tt-multi-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 7px;
+        }
+
+        .tt-multi-header {
+            font-family: 'Source Serif 4', sans-serif;
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+            color: var(--accent);
+        }
+
+        .tt-picker-close {
+            flex-shrink: 0;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 17px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 1px 5px;
+            border-radius: 5px;
+        }
+
+        .tt-picker-close:hover {
+            color: var(--text);
+            background: var(--ink-elevated-2);
+        }
+
+        .tt-multi-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 260px;
+            overflow-y: auto;
+            padding-right: 3px;
+            margin: 0 -4px;
+        }
+
+        .tt-multi-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .tt-multi-list::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+            border-radius: 6px;
+        }
+
+        .tt-row {
+            padding: 5px 4px;
+            border-radius: 6px;
+        }
+
+        .tt-row .tt-name {
+            margin-bottom: 1px;
+        }
+
+        .tt-row-pick {
+            cursor: pointer;
+            transition: background .12s ease;
+        }
+
+        .tt-row-pick:hover,
+        .tt-row-pick:focus-visible {
+            background: var(--ink-elevated-2);
+            outline: none;
+        }
+
         /* Detail: frequency + span blocks */
         .block-label {
             font-family: 'Source Serif 4', sans-serif;
@@ -1041,7 +1114,29 @@
                 return !!bucketVisibility[bucket.key];
             }
 
+            // Re-stacks route lines on the shared canvas so that lower-frequency (longer wait,
+            // thinner/lighter) routes are drawn last and sit on top of higher-frequency (thicker,
+            // more opaque) routes wherever they overlap — otherwise thin infrequent routes can get
+            // visually swallowed by the bolder lines of a frequent route running alongside them.
+            function restackRoutesByFrequency() {
+                var order = Object.keys(layersById).slice().sort(function (a, b) {
+                    var va = periodValue(freqEntryForRoute(routesById[a].properties), currentPeriod);
+                    var vb = periodValue(freqEntryForRoute(routesById[b].properties), currentPeriod);
+                    if (va === null || va === undefined || isNaN(va)) va = Infinity;
+                    if (vb === null || vb === undefined || isNaN(vb)) vb = Infinity;
+                    return va - vb; // ascending: most-frequent (shortest wait) first, so it's drawn/stacked first
+                });
+                order.forEach(function (id) {
+                    if (layersById[id]) layersById[id].bringToFront();
+                    if (hitLayersById[id]) hitLayersById[id].bringToFront();
+                });
+            }
+
             function updateRouteVisibility() {
+                // Visibility is about to change, which can invalidate any in-progress hover/picker
+                // state (a route referenced there might be about to disappear) — reset up front.
+                closePicker();
+                clearRouteHoverState();
                 Object.keys(layersById).forEach(function (id) {
                     var layer = layersById[id];
                     var densityLayer = densityLayersById[id];
@@ -1056,11 +1151,6 @@
                         if (map.hasLayer(layer)) map.removeLayer(layer);
                         if (densityLayer && map.hasLayer(densityLayer)) map.removeLayer(densityLayer);
                         if (hitLayer && map.hasLayer(hitLayer)) map.removeLayer(hitLayer);
-                        if (routeHoverId === id) {
-                            routeHoverId = null;
-                            hideRouteTooltip();
-                            map.getContainer().style.cursor = '';
-                        }
                     }
                 });
                 if (activeId && !isRouteBucketVisible(routesById[activeId].properties)) {
@@ -1408,6 +1498,7 @@
                     resetAllStyles();
                 }
                 updateRouteVisibility();
+                restackRoutesByFrequency();
                 renderList(searchEl.value);
             });
 
@@ -1431,6 +1522,20 @@
             var currentSa2Metric = 'pt800hq';
             var hoverEffectsEnabled = true;
             var routeHoverId = null; // route currently hovered on the map, used to suppress SA2 hover feedback
+
+            // ---- Multi-route overlap detection ----
+            // When several visible routes share the same drawn path (e.g. a high-frequency
+            // route that's fully overlapped by lower-frequency ones), Leaflet's canvas hit-test
+            // only ever reports the topmost hit layer at a point, so the routes underneath become
+            // unclickable. To fix this we do our own point-to-polyline hit test across ALL visible
+            // routes whenever the (fast, built-in) hit test tells us the cursor/tap is over *a*
+            // route, and if it finds more than one, we show a list so the user can choose.
+            var routeBoundsById = {}; // route_id -> L.LatLngBounds, precomputed once per route
+            var ROUTE_HIT_TOLERANCE_PX = 9; // matches half the hitLayer's 18px weight
+            var currentHoverIds = null; // ids currently previewed/highlighted from hover (1 or more)
+            var pickerOpenIds = null; // non-null while the click-to-pick popup is pinned open
+            var routeHoverRafScheduled = false;
+            var pendingRouteHoverEvent = null;
 
             var SA2_COLOR_STOPS = {
                 access: ['#c0392b', '#e67e22', '#f1c40f', '#7dbb54', '#1a8a4a'],   // red -> amber -> yellow -> green
@@ -1747,6 +1852,211 @@
                     '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[currentPeriod].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
             }
 
+            function pointToSegmentDistSq(p, a, b) {
+                var dx = b.x - a.x, dy = b.y - a.y;
+                if (dx === 0 && dy === 0) {
+                    var ddx = p.x - a.x, ddy = p.y - a.y;
+                    return ddx * ddx + ddy * ddy;
+                }
+                var t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy);
+                t = Math.max(0, Math.min(1, t));
+                var cx = a.x + t * dx, cy = a.y + t * dy;
+                var ex = p.x - cx, ey = p.y - cy;
+                return ex * ex + ey * ey;
+            }
+
+            // Minimum on-screen (layer point) distance from pt to a LineString/MultiLineString geometry.
+            function minLayerPointDistanceToGeometry(geometry, pt) {
+                var lines;
+                if (geometry.type === 'LineString') lines = [geometry.coordinates];
+                else if (geometry.type === 'MultiLineString') lines = geometry.coordinates;
+                else return Infinity;
+                var minDistSq = Infinity;
+                for (var li = 0; li < lines.length; li++) {
+                    var coords = lines[li];
+                    var prevPt = null;
+                    for (var i = 0; i < coords.length; i++) {
+                        var lp = map.latLngToLayerPoint(L.latLng(coords[i][1], coords[i][0]));
+                        if (prevPt) {
+                            var d = pointToSegmentDistSq(pt, prevPt, lp);
+                            if (d < minDistSq) minDistSq = d;
+                        }
+                        prevPt = lp;
+                    }
+                }
+                return Math.sqrt(minDistSq);
+            }
+
+            // Finds every currently-visible route whose path passes within tolerance of latlng,
+            // cheaply pre-filtered by each route's bounding box before doing the precise line test.
+            function candidateRoutesAt(latlng) {
+                var pt = map.latLngToLayerPoint(latlng);
+                var tol = ROUTE_HIT_TOLERANCE_PX;
+                var matches = [];
+                Object.keys(hitLayersById).forEach(function (id) {
+                    var hitLayer = hitLayersById[id];
+                    if (!hitLayer || !map.hasLayer(hitLayer)) return;
+                    var bounds = routeBoundsById[id];
+                    if (!bounds) return;
+                    var sw = map.latLngToLayerPoint(bounds.getSouthWest());
+                    var ne = map.latLngToLayerPoint(bounds.getNorthEast());
+                    var minX = Math.min(sw.x, ne.x) - tol, maxX = Math.max(sw.x, ne.x) + tol;
+                    var minY = Math.min(sw.y, ne.y) - tol, maxY = Math.max(sw.y, ne.y) + tol;
+                    if (pt.x < minX || pt.x > maxX || pt.y < minY || pt.y > maxY) return;
+                    if (minLayerPointDistanceToGeometry(routesById[id].geometry, pt) <= tol) matches.push(id);
+                });
+                matches.sort(function (a, b) {
+                    var pa = routesById[a].properties, pb = routesById[b].properties;
+                    var na = leadingNumber(pa.short_name), nb = leadingNumber(pb.short_name);
+                    if (na !== nb) return na - nb;
+                    return pa.short_name.localeCompare(pb.short_name);
+                });
+                // A single route number (e.g. "753") is often split across several route_id shapes
+                // — different directions/branches/patterns — which can all pass through the same
+                // point. Those aren't meaningfully different choices for the user, so keep only the
+                // first (by the sort above) route_id per unique route number + mode.
+                var seenNumbers = {};
+                var deduped = [];
+                matches.forEach(function (id) {
+                    var props = routesById[id].properties;
+                    // Normalized to alphanumerics only (lowercased) since GTFS route_short_name
+                    // values can carry stray/invisible characters that differ between a route's
+                    // direction/pattern variants, which would otherwise defeat a naive dedup.
+                    var key = String(props.short_name).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (seenNumbers[key]) return;
+                    seenNumbers[key] = true;
+                    deduped.push(id);
+                });
+                return deduped;
+            }
+
+            // Applies hover preview styling to exactly `ids` (removing it from anything no longer hovered)
+            // and shows either the single-route tooltip or the multi-route list, following the cursor.
+            function setRouteHoverState(ids, clientX, clientY) {
+                if (currentHoverIds) {
+                    currentHoverIds.forEach(function (id) {
+                        if (ids.indexOf(id) === -1) unpreviewRoute(id);
+                    });
+                }
+                ids.forEach(function (id) { previewRoute(id); });
+                currentHoverIds = ids.length ? ids : null;
+                routeHoverId = ids.length ? ids[0] : null;
+                if (ids.length === 1) {
+                    showRouteTooltip(ids[0], clientX, clientY);
+                } else if (ids.length > 1) {
+                    showMultiRouteTooltip(ids, clientX, clientY, false);
+                } else {
+                    hideRouteTooltip();
+                }
+                map.getContainer().style.cursor = ids.length ? 'pointer' : '';
+            }
+
+            function clearRouteHoverState() {
+                if (currentHoverIds) {
+                    currentHoverIds.forEach(function (id) { unpreviewRoute(id); });
+                }
+                currentHoverIds = null;
+                routeHoverId = null;
+                hideRouteTooltip();
+                map.getContainer().style.cursor = '';
+            }
+
+            // Builds the multi-route tooltip content. In "pinned" (picker) mode the rows become
+            // clickable buttons that select a route and close the popup; a close button is added too.
+            function buildMultiRouteTooltip(el, ids, pinned) {
+                el.innerHTML = '';
+                var headerRow = document.createElement('div');
+                headerRow.className = 'tt-multi-header-row';
+                var header = document.createElement('div');
+                header.className = 'tt-multi-header';
+                header.textContent = ids.length + ' routes run here' + (pinned ? ' — pick one' : '');
+                headerRow.appendChild(header);
+                if (pinned) {
+                    var closeBtn = document.createElement('button');
+                    closeBtn.className = 'tt-picker-close';
+                    closeBtn.type = 'button';
+                    closeBtn.setAttribute('aria-label', 'Close');
+                    closeBtn.textContent = '×';
+                    closeBtn.addEventListener('click', function (evt) {
+                        evt.stopPropagation();
+                        closePicker();
+                    });
+                    headerRow.appendChild(closeBtn);
+                }
+                el.appendChild(headerRow);
+
+                var list = document.createElement('div');
+                list.className = 'tt-multi-list';
+                ids.forEach(function (id) {
+                    var props = routesById[id].properties;
+                    var freqEntry = freqEntryForRoute(props);
+                    var val = periodValue(freqEntry, currentPeriod);
+                    var row = document.createElement('div');
+                    row.className = 'tt-row' + (pinned ? ' tt-row-pick' : '');
+                    row.innerHTML = '<div class="tt-name">' +
+                        '<span class="tt-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtmlGlobal(props.short_name) + '</span>' +
+                        escapeHtmlGlobal(props.long_name) +
+                        '</div>' +
+                        '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[currentPeriod].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
+                    if (pinned) {
+                        row.tabIndex = 0;
+                        row.setAttribute('role', 'button');
+                        row.addEventListener('click', function (evt) {
+                            evt.stopPropagation();
+                            closePicker();
+                            selectRoute(id, true);
+                        });
+                        row.addEventListener('keydown', function (evt) {
+                            if (evt.key === 'Enter' || evt.key === ' ') {
+                                evt.preventDefault();
+                                evt.stopPropagation();
+                                closePicker();
+                                selectRoute(id, true);
+                            }
+                        });
+                    }
+                    list.appendChild(row);
+                });
+                el.appendChild(list);
+            }
+
+            function showMultiRouteTooltip(ids, clientX, clientY, pinned) {
+                var el = document.getElementById('route-hover-tooltip');
+                el.style.maxWidth = '300px';
+                buildMultiRouteTooltip(el, ids, pinned);
+                el.style.display = 'block';
+                el.style.pointerEvents = pinned ? 'auto' : 'none';
+                positionTooltipEl(el, clientX, clientY);
+            }
+
+            // Pins the multi-route tooltip open as an interactive picker; the user must click a row
+            // (or dismiss it) before anything else on the map responds to clicks.
+            function openPicker(ids, clientX, clientY) {
+                if (currentHoverIds) {
+                    currentHoverIds.forEach(function (id) {
+                        if (ids.indexOf(id) === -1) unpreviewRoute(id);
+                    });
+                }
+                ids.forEach(function (id) { previewRoute(id); });
+                currentHoverIds = ids;
+                pickerOpenIds = ids;
+                routeHoverId = ids[0];
+                showMultiRouteTooltip(ids, clientX, clientY, true);
+                map.getContainer().style.cursor = 'pointer';
+            }
+
+            function closePicker() {
+                if (!pickerOpenIds) return;
+                if (currentHoverIds) {
+                    currentHoverIds.forEach(function (id) { unpreviewRoute(id); });
+                }
+                currentHoverIds = null;
+                pickerOpenIds = null;
+                routeHoverId = null;
+                hideRouteTooltip();
+                map.getContainer().style.cursor = '';
+            }
+
             function renderSa2Legend(metricKey) {
                 var legendEl = document.getElementById('sa2-legend');
                 var barEl = document.getElementById('sa2-gradient-bar');
@@ -1945,12 +2255,18 @@
             }
 
             function positionTooltipEl(el, clientX, clientY) {
-                var flipX = clientX > window.innerWidth - 240;
-                var flipY = clientY < 100;
+                // Measures the element's actual rendered size (innerHTML must already be set)
+                // so taller content, like a multi-route list, stays fully on-screen.
+                var w = el.offsetWidth || 220;
+                var h = el.offsetHeight || 60;
+                var flipX = clientX > window.innerWidth - w - 24;
                 el.style.left = flipX ? '' : (clientX + 16) + 'px';
                 el.style.right = flipX ? (window.innerWidth - clientX + 16) + 'px' : '';
-                el.style.top = flipY ? (clientY + 16) + 'px' : (clientY - 16) + 'px';
-                el.style.transform = flipY ? 'translateY(0)' : 'translateY(-100%)';
+                var top = clientY - h - 16;
+                if (top < 8) top = clientY + 16;
+                if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - h - 8);
+                el.style.top = top + 'px';
+                el.style.transform = '';
             }
 
             function positionSa2Tooltip(clientX, clientY) {
@@ -1964,6 +2280,8 @@
             function showRouteTooltip(id, clientX, clientY) {
                 if (!hoverEffectsEnabled) return;
                 var el = document.getElementById('route-hover-tooltip');
+                el.style.maxWidth = '240px';
+                el.style.pointerEvents = 'none';
                 el.innerHTML = routeTooltipHtml(id);
                 el.style.display = 'block';
                 positionTooltipEl(el, clientX, clientY);
@@ -1974,7 +2292,9 @@
             }
 
             function hideRouteTooltip() {
-                document.getElementById('route-hover-tooltip').style.display = 'none';
+                var el = document.getElementById('route-hover-tooltip');
+                el.style.display = 'none';
+                el.style.pointerEvents = 'none';
             }
 
             function setupSa2Interaction() {
@@ -2050,6 +2370,7 @@
                 });
 
                 map.on('click', function (e) {
+                    if (pickerOpenIds) { closePicker(); return; }
                     var code = findSa2AtLatLng(e.latlng);
                     if (code) {
                         hideSa2Tooltip();
@@ -2073,17 +2394,18 @@
                 hoverEffectsEnabled = this.checked;
                 if (!hoverEffectsEnabled) {
                     hideSa2Tooltip();
-                    hideRouteTooltip();
+                    closePicker();
+                    clearRouteHoverState();
                     if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
                         sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
                     }
                     hoveredSa2Code = null;
-                    if (routeHoverId && layersById[routeHoverId] && routeHoverId !== activeId) {
-                        unpreviewRoute(routeHoverId);
-                    }
-                    routeHoverId = null;
                     map.getContainer().style.cursor = '';
                 }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && pickerOpenIds) closePicker();
             });
 
             var sa2Fetch = fetch(SA2_URL)
@@ -2176,31 +2498,48 @@
                                 }
                             }).addTo(map);
                             hitLayersById[f.properties.route_id] = hitLayer;
-                            hitLayer.on('click', function (e) { L.DomEvent.stopPropagation(e); selectRoute(f.properties.route_id, true); });
+                            routeBoundsById[f.properties.route_id] = hitLayer.getBounds();
+
+                            // Clicking/hovering this route's hit area finds ALL visible routes that pass
+                            // through this exact point (not just this one) — see candidateRoutesAt above.
+                            // That's what makes a high-frequency route fully covered by thinner, lower-
+                            // frequency routes still selectable: it shows up as one of the candidates.
+                            hitLayer.on('click', function (e) {
+                                L.DomEvent.stopPropagation(e);
+                                if (pickerOpenIds) { closePicker(); return; }
+                                var candidates = candidateRoutesAt(e.latlng);
+                                if (candidates.length > 1) {
+                                    openPicker(candidates, e.originalEvent.clientX, e.originalEvent.clientY);
+                                } else {
+                                    selectRoute(candidates[0] || f.properties.route_id, true);
+                                }
+                            });
                             hitLayer.on('mouseover', function (e) {
-                                if (!hoverEffectsEnabled) return;
-                                routeHoverId = f.properties.route_id;
-                                previewRoute(f.properties.route_id);
-                                showRouteTooltip(f.properties.route_id, e.originalEvent.clientX, e.originalEvent.clientY);
-                                map.getContainer().style.cursor = 'pointer';
+                                if (!hoverEffectsEnabled || pickerOpenIds) return;
+                                setRouteHoverState(candidateRoutesAt(e.latlng), e.originalEvent.clientX, e.originalEvent.clientY);
                             });
                             hitLayer.on('mousemove', function (e) {
-                                if (!hoverEffectsEnabled || routeHoverId !== f.properties.route_id) return;
-                                positionRouteTooltip(e.originalEvent.clientX, e.originalEvent.clientY);
+                                if (!hoverEffectsEnabled || pickerOpenIds) return;
+                                pendingRouteHoverEvent = e;
+                                if (routeHoverRafScheduled) return;
+                                routeHoverRafScheduled = true;
+                                requestAnimationFrame(function () {
+                                    routeHoverRafScheduled = false;
+                                    if (!pendingRouteHoverEvent || pickerOpenIds) return;
+                                    var ev = pendingRouteHoverEvent;
+                                    setRouteHoverState(candidateRoutesAt(ev.latlng), ev.originalEvent.clientX, ev.originalEvent.clientY);
+                                });
                             });
                             hitLayer.on('mouseout', function () {
-                                if (routeHoverId === f.properties.route_id) {
-                                    routeHoverId = null;
-                                    map.getContainer().style.cursor = '';
-                                }
-                                unpreviewRoute(f.properties.route_id);
-                                hideRouteTooltip();
+                                if (pickerOpenIds) return;
+                                clearRouteHoverState();
                             });
                         }
                     }).addTo(map);
 
                     fullBounds = geoLayer.getBounds();
                     updateRouteVisibility();
+                    restackRoutesByFrequency();
                     renderList('');
 
                     // deep-link support: ?route=57
