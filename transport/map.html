@@ -874,16 +874,15 @@
             <p class="freq-label">Area shading shows</p>
             <select id="sa2-select">
                 <option value="">Off (basemap only)</option>
-                <option value="bus400">Any bus service within 400m</option>
-                <option value="bus800hq">High-quality bus service within 800m</option>
-                <option value="pt400">Any public transport within 400m</option>
-                <option value="pt800hq" selected>High-quality public transport within 800m</option>
-                <option value="seifa_score">SEIFA score (socio-economic)</option>
-                <option value="seifa_decile">SEIFA decile (1=disadv., 10=advantaged)</option>
-                <option value="population">Population (2025 est.)</option>
-                <option value="dwellings">Dwellings (2025 est.)</option>
-                <option value="people_served">People served by high-quality PT</option>
-                <option value="people_isolated">People isolated from high-quality PT</option>
+                <option value="pt400">Any PT within 400m</option>
+                <option value="pt800hq" selected>High-quality PT within 800m</option>
+                <option value="people_served">Dwellings served by high-quality PT</option>
+                <option value="people_isolated">Dwellings isolated from high-quality PT</option>
+                <option value="seifa_score">SEIFA score</option>
+                <option value="seifa_decile">SEIFA decile</option>
+                <option value="population">Population</option>
+                <option value="dwellings">Dwellings</option>
+
             </select>
             <label class="sa2-hover-toggle">
                 <input type="checkbox" id="sa2-hover-toggle-input" checked>
@@ -1435,13 +1434,13 @@
                 },
                 pt400: {
                     prop: '% dwellings within 400m of any public transport service',
-                    label: 'Any public transport within 400m', shortLabel: 'Any PT · 400m', format: 'percent',
+                    label: 'Any PT within 400m', shortLabel: 'Any PT · 400m', format: 'percent',
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 400m walk of any PT service (bus, train or tram).'
                 },
                 pt800hq: {
                     prop: '% dwellings with 800m of a high quality public transport service',
-                    label: 'High-quality public transport within 800m', shortLabel: 'HQ PT · 800m', format: 'percent',
+                    label: 'High-quality PT within 800m', shortLabel: 'HQ PT · 800m', format: 'percent',
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 800m of a high-frequency PT service.'
                 },
@@ -1459,41 +1458,41 @@
                 },
                 population: {
                     prop: 'population_2025',
-                    label: 'Population (2025 est.)', shortLabel: 'Population', format: 'count',
-                    domain: [0, 37000], palette: 'count',
+                    label: 'Population', shortLabel: 'Population', format: 'count',
+                    domain: [0, 37000], palette: 'count', colorBy: 'percentile',
                     caption: 'Estimated resident population by SA2, 2025.'
                 },
                 dwellings: {
                     prop: 'dwellings_2025',
-                    label: 'Dwellings (2025 est.)', shortLabel: 'Dwellings', format: 'count',
-                    domain: [0, 21000], palette: 'count',
+                    label: 'Dwellings', shortLabel: 'Dwellings', format: 'count',
+                    domain: [0, 21000], palette: 'count', colorBy: 'percentile',
                     caption: 'Estimated dwelling count by SA2, 2025.'
                 },
                 people_served: {
-                    // Estimated residents within 800m of a high-quality PT service:
-                    // population_2025 × % dwellings with 800m of a high quality PT service.
+                    // Estimated dwellings within 800m of a high-quality PT service:
+                    // dwellings_2025 × % dwellings with 800m of a high quality PT service.
                     compute: function (props) {
-                        var pop = props['population_2025'];
+                        var dwell = props['dwellings_2025'];
                         var pct = props['% dwellings with 800m of a high quality public transport service'];
-                        if (typeof pop !== 'number' || typeof pct !== 'number' || isNaN(pop) || isNaN(pct)) return null;
-                        return pop * pct;
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * pct;
                     },
-                    label: 'People served by high-quality PT', shortLabel: 'People served', format: 'count',
-                    domain: [0, 23000], palette: 'access',
-                    caption: 'Estimated residents within 800m of a high-frequency public transport service.'
+                    label: 'Dwellings served by high-quality PT', shortLabel: 'Dwellings served', format: 'count',
+                    domain: [0, 23000], palette: 'access', colorBy: 'percentile',
+                    caption: 'Estimated dwellings within 800m of a high-frequency public transport service.'
                 },
                 people_isolated: {
-                    // Estimated residents NOT within 800m of a high-quality PT service:
-                    // population_2025 × (1 − % dwellings with 800m of a high quality PT service).
+                    // Estimated dwellings NOT within 800m of a high-quality PT service:
+                    // dwellings_2025 × (1 − % dwellings with 800m of a high quality PT service).
                     compute: function (props) {
-                        var pop = props['population_2025'];
+                        var dwell = props['dwellings_2025'];
                         var pct = props['% dwellings with 800m of a high quality public transport service'];
-                        if (typeof pop !== 'number' || typeof pct !== 'number' || isNaN(pop) || isNaN(pct)) return null;
-                        return pop * (1 - pct);
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * (1 - pct);
                     },
-                    label: 'People isolated from high-quality PT', shortLabel: 'People isolated', format: 'count',
-                    domain: [0, 37000], palette: 'access_rev', reversePercentile: true,
-                    caption: 'Estimated residents further than 800m from a high-frequency public transport service.'
+                    label: 'Dwellings isolated from high-quality PT', shortLabel: 'Dwellings isolated', format: 'count',
+                    domain: [0, 37000], palette: 'access_rev', reversePercentile: true, colorBy: 'percentile',
+                    caption: 'Estimated dwellings further than 800m from a high-frequency public transport service.'
                 }
             };
 
@@ -1531,7 +1530,18 @@
             function sa2ColorForValue(metricKey, value) {
                 var m = SA2_METRICS[metricKey];
                 if (value === null || value === undefined || isNaN(value)) return '#3a4155';
-                var t = (value - m.domain[0]) / (m.domain[1] - m.domain[0]);
+                var t;
+                if (m.colorBy === 'percentile') {
+                    // Raw-count metrics (population, dwellings, served/isolated) are heavily
+                    // skewed by a handful of large-SA2 outliers, so a fixed 0..max domain
+                    // crams almost every area into one end of the palette. Rank against every
+                    // other SA2 instead, so colour reflects "high/low relative to Melbourne"
+                    // rather than "high/low relative to the single biggest area".
+                    var rank = sa2Percentile(metricKey, value); // 0-100, or null if stats not built yet
+                    t = (rank === null) ? 0.5 : rank / 100;
+                } else {
+                    t = (value - m.domain[0]) / (m.domain[1] - m.domain[0]);
+                }
                 return interpolatePalette(SA2_COLOR_STOPS[m.palette], t);
             }
 
@@ -1731,9 +1741,18 @@
                 var m = SA2_METRICS[metricKey];
                 var stops = SA2_COLOR_STOPS[m.palette];
                 barEl.style.background = 'linear-gradient(to right, ' + stops.join(', ') + ')';
-                minEl.textContent = sa2FormatValue(m.format, m.domain[0]);
-                maxEl.textContent = sa2FormatValue(m.format, m.domain[1]);
-                capEl.textContent = m.caption;
+                if (m.colorBy === 'percentile') {
+                    var sorted = sa2MetricStats[metricKey];
+                    var lo = (sorted && sorted.length) ? sorted[0] : m.domain[0];
+                    var hi = (sorted && sorted.length) ? sorted[sorted.length - 1] : m.domain[1];
+                    minEl.textContent = 'Lowest (' + sa2FormatValue(m.format, lo) + ')';
+                    maxEl.textContent = 'Highest (' + sa2FormatValue(m.format, hi) + ')';
+                    capEl.textContent = m.caption + ' Shaded by percentile rank among Melbourne SA2 areas, not raw value, so a few very large areas don\u2019t wash out the map.';
+                } else {
+                    minEl.textContent = sa2FormatValue(m.format, m.domain[0]);
+                    maxEl.textContent = sa2FormatValue(m.format, m.domain[1]);
+                    capEl.textContent = m.caption;
+                }
                 legendEl.classList.add('visible');
             }
 
