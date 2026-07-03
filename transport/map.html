@@ -882,6 +882,8 @@
                 <option value="seifa_decile">SEIFA decile (1=disadv., 10=advantaged)</option>
                 <option value="population">Population (2025 est.)</option>
                 <option value="dwellings">Dwellings (2025 est.)</option>
+                <option value="people_served">People served by high-quality PT</option>
+                <option value="people_isolated">People isolated from high-quality PT</option>
             </select>
             <label class="sa2-hover-toggle">
                 <input type="checkbox" id="sa2-hover-toggle-input" checked>
@@ -1310,7 +1312,7 @@
                         if (!row) return;
                         spanHtml += '<div class="span-row">' +
                             '<p class="span-row-label">' + escapeHtml(g.label) + '</p>' +
-                            '<p class="span-row-value">' + minutesToClock(row.span_start) + ' – ' + minutesToClock(row.span_end) + '</p>' +
+                            '<p class="span-row-value">' + minutesToClock(row.full_coverage_start) + ' – ' + minutesToClock(row.full_coverage_end) + '</p>' +
                             '</div>';
                     });
                 } else {
@@ -1413,6 +1415,7 @@
 
             var SA2_COLOR_STOPS = {
                 access: ['#c0392b', '#e67e22', '#f1c40f', '#7dbb54', '#1a8a4a'],   // red -> amber -> yellow -> green
+                access_rev: ['#1a8a4a', '#7dbb54', '#f1c40f', '#e67e22', '#c0392b'],   // green -> amber -> red (bad when high)
                 seifa: ['#eef4fb', '#b7d3ea', '#6fa8d6', '#3573b0', '#0d3f70'],   // light -> dark blue
                 count: ['#2a2110', '#6b4a1a', '#a86d1f', '#d69331', '#FFB020']    // dark -> accent amber
             };
@@ -1465,8 +1468,43 @@
                     label: 'Dwellings (2025 est.)', shortLabel: 'Dwellings', format: 'count',
                     domain: [0, 21000], palette: 'count',
                     caption: 'Estimated dwelling count by SA2, 2025.'
+                },
+                people_served: {
+                    // Estimated residents within 800m of a high-quality PT service:
+                    // population_2025 × % dwellings with 800m of a high quality PT service.
+                    compute: function (props) {
+                        var pop = props['population_2025'];
+                        var pct = props['% dwellings with 800m of a high quality public transport service'];
+                        if (typeof pop !== 'number' || typeof pct !== 'number' || isNaN(pop) || isNaN(pct)) return null;
+                        return pop * pct;
+                    },
+                    label: 'People served by high-quality PT', shortLabel: 'People served', format: 'count',
+                    domain: [0, 23000], palette: 'access',
+                    caption: 'Estimated residents within 800m of a high-frequency public transport service.'
+                },
+                people_isolated: {
+                    // Estimated residents NOT within 800m of a high-quality PT service:
+                    // population_2025 × (1 − % dwellings with 800m of a high quality PT service).
+                    compute: function (props) {
+                        var pop = props['population_2025'];
+                        var pct = props['% dwellings with 800m of a high quality public transport service'];
+                        if (typeof pop !== 'number' || typeof pct !== 'number' || isNaN(pop) || isNaN(pct)) return null;
+                        return pop * (1 - pct);
+                    },
+                    label: 'People isolated from high-quality PT', shortLabel: 'People isolated', format: 'count',
+                    domain: [0, 37000], palette: 'access_rev', reversePercentile: true,
+                    caption: 'Estimated residents further than 800m from a high-frequency public transport service.'
                 }
             };
+
+            // Reads a metric's value for a feature's properties, supporting both plain
+            // property lookups (m.prop) and derived metrics (m.compute), e.g. people_served.
+            function sa2MetricValue(metricKey, props) {
+                var m = SA2_METRICS[metricKey];
+                if (!m) return null;
+                if (typeof m.compute === 'function') return m.compute(props);
+                return props[m.prop];
+            }
 
             function hexToRgb(hex) {
                 var n = parseInt(hex.slice(1), 16);
@@ -1519,7 +1557,7 @@
                     var m = SA2_METRICS[key];
                     var vals = [];
                     sa2FeatureList.forEach(function (entry) {
-                        var v = entry.feature.properties[m.prop];
+                        var v = sa2MetricValue(key, entry.feature.properties);
                         if (typeof v === 'number' && !isNaN(v)) vals.push(v);
                     });
                     vals.sort(function (a, b) { return a - b; });
@@ -1538,6 +1576,15 @@
                     if (sorted[mid] <= value) lo = mid + 1; else hi = mid;
                 }
                 return Math.round((lo / sorted.length) * 100);
+            }
+
+            function sa2PercentileDisplay(metricKey, value) {
+                var rank = sa2Percentile(metricKey, value);
+                var m = SA2_METRICS[metricKey];
+                if (rank !== null && m && m.reversePercentile) {
+                    return 100 - rank;
+                }
+                return rank;
             }
 
             function ordinal(n) {
@@ -1563,7 +1610,7 @@
                 return function (feature) {
                     if (!metricKey) return { renderer: sa2Renderer, pane: 'sa2Pane', stroke: false, opacity: 0, fillOpacity: 0 };
                     var m = SA2_METRICS[metricKey];
-                    var val = feature.properties[m.prop];
+                    var val = sa2MetricValue(metricKey, feature.properties);
                     return {
                         renderer: sa2Renderer,
                         pane: 'sa2Pane',
@@ -1654,7 +1701,7 @@
 
             function sa2TooltipHtml(metricKey, props) {
                 var m = SA2_METRICS[metricKey];
-                var val = props[m.prop];
+                var val = sa2MetricValue(metricKey, props);
                 return '<div class="tt-name">' + escapeHtmlGlobal(props.Area || props.SA2_CODE21) + '</div>' +
                     '<div class="tt-value">' + escapeHtmlGlobal(m.label) + ': <strong>' + sa2FormatValue(m.format, val) + '</strong></div>';
             }
@@ -1713,13 +1760,13 @@
 
             function sa2MetricCardHtml(metricKey, props) {
                 var m = SA2_METRICS[metricKey];
-                var val = props[m.prop];
+                var val = sa2MetricValue(metricKey, props);
                 var hasVal = typeof val === 'number' && !isNaN(val);
                 var color = hasVal ? sa2ColorForValue(metricKey, val) : '#5a6172';
                 var fillPct = hasVal
                     ? Math.max(0, Math.min(1, (val - m.domain[0]) / (m.domain[1] - m.domain[0]))) * 100
                     : 0;
-                var rank = hasVal ? sa2Percentile(metricKey, val) : null;
+                var rank = hasVal ? sa2PercentileDisplay(metricKey, val) : null;
                 var caption = hasVal
                     ? (rank !== null ? ordinal(rank) + ' percentile' : '')
                     : 'No data for this area';
@@ -1753,9 +1800,9 @@
 
             function sa2StatCardHtml(metricKey, props) {
                 var m = SA2_METRICS[metricKey];
-                var val = props[m.prop];
+                var val = sa2MetricValue(metricKey, props);
                 var hasVal = typeof val === 'number' && !isNaN(val);
-                var rank = hasVal ? sa2Percentile(metricKey, val) : null;
+                var rank = hasVal ? sa2PercentileDisplay(metricKey, val) : null;
                 var caption = hasVal && rank !== null ? ordinal(rank) + ' percentile' : 'No data';
                 return '<div class="sa2-stat-card">' +
                     '<p class="sa2-stat-card-value">' + escapeHtml(hasVal ? Math.round(val).toLocaleString() : '—') + '</p>' +
@@ -1770,6 +1817,11 @@
                 html += '<div class="sa2-metric-grid">' +
                     sa2MetricCardHtml('pt400', props) +
                     sa2MetricCardHtml('pt800hq', props) +
+                    '</div>';
+
+                html += '<div class="sa2-stat-pair">' +
+                    sa2StatCardHtml('people_served', props) +
+                    sa2StatCardHtml('people_isolated', props) +
                     '</div>';
 
                 html += '<p class="block-label">Socio-economic profile</p>';
