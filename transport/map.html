@@ -1885,6 +1885,7 @@
                 if (layer) {
                     layer.setStyle(sa2ActiveStyleObj(layer.feature));
                     layer.bringToFront();
+                    map.flyToBounds(layer.getBounds(), { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
                 }
                 document.getElementById('panel').style.display = 'flex';
                 renderSa2Detail(code);
