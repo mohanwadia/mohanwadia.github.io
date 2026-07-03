@@ -605,6 +605,17 @@
             border-color: var(--accent);
         }
 
+        /* ---------- Configure control ---------- */
+        #configure-control {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--hairline);
+        }
+
+        #configure-control .sa2-hover-toggle:first-of-type {
+            margin-top: 8px;
+        }
+
         .sa2-hover-toggle {
             display: flex;
             align-items: center;
@@ -884,10 +895,6 @@
                 <option value="dwellings">Dwellings</option>
 
             </select>
-            <label class="sa2-hover-toggle">
-                <input type="checkbox" id="sa2-hover-toggle-input" checked>
-                <span>Show hover details</span>
-            </label>
             <div class="sa2-legend" id="sa2-legend">
                 <div class="sa2-gradient-bar" id="sa2-gradient-bar"></div>
                 <div class="sa2-legend-labels">
@@ -896,6 +903,18 @@
                 </div>
                 <div class="sa2-legend-caption" id="sa2-legend-caption"></div>
             </div>
+        </div>
+
+        <div id="configure-control">
+            <p class="freq-label">Configure</p>
+            <label class="sa2-hover-toggle">
+                <input type="checkbox" id="sa2-hover-toggle-input" checked>
+                <span>Show hover details</span>
+            </label>
+            <label class="sa2-hover-toggle">
+                <input type="checkbox" id="zoom-on-click-toggle-input" checked>
+                <span>Zoom in on click</span>
+            </label>
         </div>
     </div>
 
@@ -1112,6 +1131,7 @@
             var routesById = {};
             var listRowsById = {};
             var activeId = null;
+            var zoomOnClickEnabled = true;
             var fullBounds = null;
 
             function leadingNumber(name) {
@@ -1277,7 +1297,7 @@
 
                 dimAllExcept(id);
 
-                if (fly !== false) {
+                if (fly !== false && zoomOnClickEnabled) {
                     map.flyToBounds(layersById[id].getBounds(), { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
                 }
 
@@ -1885,7 +1905,9 @@
                 if (layer) {
                     layer.setStyle(sa2ActiveStyleObj(layer.feature));
                     layer.bringToFront();
-                    map.flyToBounds(layer.getBounds(), { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
+                    if (zoomOnClickEnabled) {
+                        map.flyToBounds(layer.getBounds(), { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
+                    }
                 }
                 document.getElementById('panel').style.display = 'flex';
                 renderSa2Detail(code);
@@ -2041,6 +2063,10 @@
 
             document.getElementById('sa2-select').addEventListener('change', function () {
                 updateSa2Display(this.value);
+            });
+
+            document.getElementById('zoom-on-click-toggle-input').addEventListener('change', function () {
+                zoomOnClickEnabled = this.checked;
             });
 
             document.getElementById('sa2-hover-toggle-input').addEventListener('change', function () {
