@@ -984,7 +984,6 @@
                 <option value="">Off (basemap only)</option>
                 <option value="pt400">Any PT within 400m</option>
                 <option value="pt800hq" selected>High-quality PT within 800m</option>
-                <option value="seifa_score">SEIFA score</option>
                 <option value="seifa_decile">SEIFA decile</option>
                 <option value="population">Population</option>
                 <option value="dwellings">Dwellings</option>
@@ -1555,6 +1554,11 @@
             // ---- SA2 background choropleth ----
             // Data: ABS SA2 2021 boundaries joined to the "Improving bus services" dashboard export.
             var SA2_URL = 'sa2_data.geojson';
+            // ABS SA1 2021 boundaries (the sub-areas each SA2 is made up of) joined to 2021
+            // Census dwelling counts (Total_PDs_Dwellings). Used only to place dwelling dots
+            // more realistically within an SA2 - fetched lazily (only once the dots overlay
+            // is actually turned on) since most visits never touch it.
+            var SA1_URL = 'sa1_data.geojson';
             var sa2Layer = null;
             var sa2LayersByCode = {};
             var sa2FeatureList = []; // { code, feature, layer, bounds } - used for manual hit-testing
@@ -1610,12 +1614,6 @@
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 800m of a high-frequency PT service.'
                 },
-                seifa_score: {
-                    prop: 'SEIFA_Score',
-                    label: 'SEIFA score (socio-economic)', shortLabel: 'SEIFA score', format: 'score',
-                    domain: [830, 1160], palette: 'seifa',
-                    caption: 'ABS SEIFA Index of Relative Socio-economic Advantage/Disadvantage. Higher = more advantaged.'
-                },
                 seifa_decile: {
                     prop: 'SEIFA_Decile',
                     label: 'SEIFA decile', shortLabel: 'SEIFA decile', format: 'decile',
@@ -1639,10 +1637,40 @@
             // ---- Dwelling dots overlay ----
             // Each option computes an estimated dwelling count per SA2 (dwellings_2025 ×
             // the relevant PT-access share, or its complement), the same formula used for
-            // the old people_served/people_isolated choropleth metrics. One dot is drawn
-            // per 100 dwellings in that count. Positions are randomly scattered within the
-            // SA2 boundary (rejection-sampled) - they don't represent real dwelling locations.
-            var DOTS_PER_UNIT = 100;
+            // the old people_served/people_isolated choropleth metrics. Positions are
+            // randomly scattered (rejection-sampled) within the SA2's SA1 sub-areas, weighted
+            // by each SA1's 2021 Census dwelling count (see sa1_data.geojson / sa1BySa2 below)
+            // so dots cluster more realistically towards the SA2's denser pockets instead of
+            // being equally likely anywhere across it - they still don't represent real
+            // dwelling locations, just a more plausible distribution than pure-uniform.
+            //
+            // The number of dwellings represented by one dot scales with zoom: zoomed out,
+            // one dot stands for many dwellings; zoomed in, one dot can stand for as few as 1.
+            // Breakpoints are all round numbers. Dots are stable across zoom/pan: each SA2
+            // gets a single shared pool of random points that only ever grows (never
+            // reshuffled), so zooming in reveals additional points from that same pool
+            // instead of moving the ones already on screen, and zooming out hides points
+            // from the end of the pool rather than discarding them.
+            var DOTS_ZOOM_BREAKPOINTS = [
+                { zoom: 0, per: 500 },
+                { zoom: 11, per: 250 },
+                { zoom: 12, per: 100 },
+                { zoom: 13, per: 50 },
+                { zoom: 14, per: 25 },
+                { zoom: 15, per: 10 },
+                { zoom: 16, per: 5 },
+                { zoom: 17, per: 2 },
+                { zoom: 18, per: 1 }
+            ];
+
+            function dotsPerUnitForZoom(zoom) {
+                var per = DOTS_ZOOM_BREAKPOINTS[0].per;
+                for (var i = 0; i < DOTS_ZOOM_BREAKPOINTS.length; i++) {
+                    if (zoom >= DOTS_ZOOM_BREAKPOINTS[i].zoom) per = DOTS_ZOOM_BREAKPOINTS[i].per;
+                }
+                return per;
+            }
+
             var DOT_METRICS = {
                 served_pt400: {
                     computeCount: function (props) {
@@ -1652,7 +1680,7 @@
                         return dwell * pct;
                     },
                     label: 'Dwellings served by PT',
-                    caption: 'Estimated dwellings within 400m of any public transport service (bus, train or tram). One dot ≈ 100 dwellings, randomly placed within each area.',
+                    baseCaption: 'Estimated dwellings within 400m of any public transport service (bus, train or tram).',
                     color: '#000000'
                 },
                 isolated_pt400: {
@@ -1663,7 +1691,7 @@
                         return dwell * (1 - pct);
                     },
                     label: 'Dwellings isolated from PT',
-                    caption: 'Estimated dwellings further than 400m from any public transport service. One dot ≈ 100 dwellings, randomly placed within each area.',
+                    baseCaption: 'Estimated dwellings further than 400m from any public transport service.',
                     color: '#000000'
                 },
                 served_pt800hq: {
@@ -1674,7 +1702,7 @@
                         return dwell * pct;
                     },
                     label: 'Dwellings served by high-quality PT',
-                    caption: 'Estimated dwellings within 800m of a high-frequency public transport service. One dot ≈ 100 dwellings, randomly placed within each area.',
+                    baseCaption: 'Estimated dwellings within 800m of a high-frequency public transport service.',
                     color: '#000000'
                 },
                 isolated_pt800hq: {
@@ -1685,12 +1713,93 @@
                         return dwell * (1 - pct);
                     },
                     label: 'Dwellings isolated from high-quality PT',
-                    caption: 'Estimated dwellings further than 800m from a high-frequency public transport service. One dot ≈ 100 dwellings, randomly placed within each area.',
+                    baseCaption: 'Estimated dwellings further than 800m from a high-frequency public transport service.',
                     color: '#000000'
                 }
             };
-            var dotsCache = {}; // metricKey -> L.LayerGroup, built lazily and reused
-            var currentDotsLayer = null;
+
+            // ---- SA1 sub-areas (for realistic within-SA2 dot placement) ----
+            // sa1BySa2: SA2_CODE21 -> array of { code, feature, bounds, weight }, one entry
+            // per SA1 belonging to that SA2. `weight` is the SA1's 2021 dwelling count, used
+            // to bias which SA1 a given dot lands in so denser sub-areas get more dots instead
+            // of every dot being equally likely anywhere in the (often lumpy) SA2.
+            var sa1BySa2 = {};
+            var sa1DataPromise = null;
+            var sa1DataReady = false;
+
+            // Scans a GeoJSON Polygon/MultiPolygon's outer ring(s) only (holes are always
+            // inside the outer extent, so they don't affect the bounding box) to build an
+            // L.LatLngBounds without needing to add anything to the map.
+            function computeBoundsForFeature(feature) {
+                var minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+                function scanRing(ring) {
+                    for (var i = 0; i < ring.length; i++) {
+                        var lng = ring[i][0], lat = ring[i][1];
+                        if (lng < minLng) minLng = lng;
+                        if (lng > maxLng) maxLng = lng;
+                        if (lat < minLat) minLat = lat;
+                        if (lat > maxLat) maxLat = lat;
+                    }
+                }
+                var geom = feature.geometry;
+                if (geom.type === 'Polygon') {
+                    scanRing(geom.coordinates[0]);
+                } else if (geom.type === 'MultiPolygon') {
+                    for (var i = 0; i < geom.coordinates.length; i++) scanRing(geom.coordinates[i][0]);
+                }
+                return L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
+            }
+
+            // Fetches and indexes sa1_data.geojson exactly once, on first use. If it fails to
+            // load (missing file, network error, etc.) sa1DataReady stays false and dot
+            // placement transparently falls back to the previous whole-SA2 behaviour.
+            function ensureSa1Data() {
+                if (!sa1DataPromise) {
+                    sa1DataPromise = fetch(SA1_URL)
+                        .then(function (r) { if (!r.ok) throw new Error('sa1 http ' + r.status); return r.json(); })
+                        .then(function (fc) {
+                            fc.features.forEach(function (feature) {
+                                var sa2 = feature.properties.SA2_CODE21;
+                                var list = sa1BySa2[sa2];
+                                if (!list) { list = []; sa1BySa2[sa2] = list; }
+                                list.push({
+                                    code: feature.properties.SA1_CODE21,
+                                    feature: feature,
+                                    bounds: computeBoundsForFeature(feature),
+                                    weight: feature.properties.dwellings_2021 || 0
+                                });
+                            });
+                            sa1DataReady = true;
+                        })
+                        .catch(function (err) {
+                            console.warn('Could not load SA1 sub-area data, falling back to whole-SA2 dot placement:', err.message);
+                            sa1DataReady = false;
+                        });
+                }
+                return sa1DataPromise;
+            }
+
+            // Picks one of an SA2's SA1 sub-areas at random, weighted by each SA1's dwelling
+            // count, so a denser SA1 is proportionally more likely to receive the next dot.
+            // Falls back to equal weighting if none of the SA1s have dwelling data.
+            function pickWeightedSa1(sa1List) {
+                var total = 0;
+                for (var i = 0; i < sa1List.length; i++) total += sa1List[i].weight;
+                if (total <= 0) return sa1List[Math.floor(Math.random() * sa1List.length)];
+                var r = Math.random() * total;
+                for (var j = 0; j < sa1List.length; j++) {
+                    r -= sa1List[j].weight;
+                    if (r <= 0) return sa1List[j];
+                }
+                return sa1List[sa1List.length - 1];
+            }
+
+            // sa2PointPools: code -> array of L.LatLng. Shared across all dot metrics since
+            // the *positions* are metric-agnostic; only the count shown per metric differs.
+            // The pool only ever grows (append-only) so previously-shown points never move.
+            var sa2PointPools = {};
+            // dotsMetricState: metricKey -> { group: L.LayerGroup, bySa2: { code: { markers: [...], shownCount } } }
+            var dotsMetricState = {};
             var currentDotsMetric = '';
 
             // Reads a metric's value for a feature's properties, supporting both plain
@@ -1907,76 +2016,142 @@
             }
 
             // ---- Dwelling dots overlay: random point-in-polygon sampling ----
-            // Rejection-samples random lat/lngs within an SA2's bounding box and keeps the
-            // ones that fall inside the actual polygon (reusing the same pointInFeature test
-            // as the SA2 hit-testing above), up to `count` points or a generous attempt cap.
+            // Rejection-samples random lat/lngs and keeps the ones that fall inside the actual
+            // polygon (reusing the same pointInFeature test as the SA2 hit-testing above), up
+            // to `count` points or a generous attempt cap.
+            //
+            // When SA1 data is loaded, each new point first picks one of the SA2's SA1
+            // sub-areas (weighted by 2021 dwelling counts, see pickWeightedSa1) and is sampled
+            // within that SA1's own bounding box/polygon instead of the whole SA2's - this is
+            // what makes denser pockets of an SA2 get proportionally more dots rather than
+            // dots being equally likely anywhere across the (often large, uneven) SA2. If SA1
+            // data isn't available for this SA2 (still loading, failed to fetch, or no SA1s
+            // matched), it falls back to sampling across the whole SA2 polygon as before.
             function randomPointsInFeature(entry, count) {
                 var pts = [];
                 if (count <= 0) return pts;
-                var bounds = entry.bounds;
-                var south = bounds.getSouth(), north = bounds.getNorth();
-                var west = bounds.getWest(), east = bounds.getEast();
+                var sa1List = sa1BySa2[entry.code];
+                var useSa1 = !!(sa1List && sa1List.length);
                 var attempts = 0;
                 var maxAttempts = Math.max(500, count * 60);
                 while (pts.length < count && attempts < maxAttempts) {
                     attempts++;
+                    var target = useSa1 ? pickWeightedSa1(sa1List) : entry;
+                    var bounds = target.bounds;
+                    var south = bounds.getSouth(), north = bounds.getNorth();
+                    var west = bounds.getWest(), east = bounds.getEast();
                     var lat = south + Math.random() * (north - south);
                     var lng = west + Math.random() * (east - west);
                     var ll = L.latLng(lat, lng);
-                    if (pointInFeature(ll, entry.feature)) pts.push(ll);
+                    if (pointInFeature(ll, target.feature)) pts.push(ll);
                 }
                 return pts;
             }
 
-            function buildDotsLayer(metricKey) {
+            function ensurePointPool(entry, minCount) {
+                var pool = sa2PointPools[entry.code];
+                if (!pool) { pool = []; sa2PointPools[entry.code] = pool; }
+                if (pool.length < minCount) {
+                    var extra = randomPointsInFeature(entry, minCount - pool.length);
+                    Array.prototype.push.apply(pool, extra);
+                }
+                return pool;
+            }
+
+            function ensureDotsMetricState(metricKey) {
+                var state = dotsMetricState[metricKey];
+                if (!state) {
+                    state = { group: L.layerGroup(), bySa2: {} };
+                    dotsMetricState[metricKey] = state;
+                }
+                return state;
+            }
+
+            // Sets how many of an SA2's dots should currently be visible for a metric.
+            // Grows the shared point pool/marker list the first time more dots are needed
+            // than have ever been created (positions are appended, never reshuffled), then
+            // adds or removes just the difference between what's shown now and what's
+            // wanted - so existing dots on screen never move or get regenerated.
+            function setSa2DotCount(metricKey, entry, numDots) {
                 var m = DOT_METRICS[metricKey];
-                if (!m) return null;
-                var group = L.layerGroup();
-                sa2FeatureList.forEach(function (entry) {
-                    var count = m.computeCount(entry.feature.properties);
-                    if (typeof count !== 'number' || isNaN(count) || count <= 0) return;
-                    var numDots = Math.round(count / DOTS_PER_UNIT);
-                    if (numDots <= 0) return;
-                    var pts = randomPointsInFeature(entry, numDots);
-                    pts.forEach(function (ll) {
-                        L.circleMarker(ll, {
+                var state = ensureDotsMetricState(metricKey);
+                var sState = state.bySa2[entry.code];
+                if (!sState) { sState = { markers: [], shownCount: 0 }; state.bySa2[entry.code] = sState; }
+
+                if (numDots > sState.markers.length) {
+                    var pool = ensurePointPool(entry, numDots);
+                    for (var i = sState.markers.length; i < numDots; i++) {
+                        sState.markers.push(L.circleMarker(pool[i], {
                             renderer: dotsRenderer,
                             pane: 'dotsPane',
                             radius: 2,
                             stroke: false,
                             fillColor: m.color,
                             fillOpacity: 0.85
-                        }).addTo(group);
-                    });
+                        }));
+                    }
+                }
+
+                if (numDots > sState.shownCount) {
+                    for (var j = sState.shownCount; j < numDots; j++) state.group.addLayer(sState.markers[j]);
+                } else if (numDots < sState.shownCount) {
+                    for (var k = numDots; k < sState.shownCount; k++) state.group.removeLayer(sState.markers[k]);
+                }
+                sState.shownCount = numDots;
+            }
+
+            // Recomputes dot counts for the active metric at the current zoom/viewport.
+            // Only SA2s intersecting the visible map area are given dots (with dot counts
+            // for off-screen areas dropped to 0, not discarded), which keeps the point count
+            // reasonable even at the finest (1 dwelling per dot) zoom level.
+            function refreshDots() {
+                if (!currentDotsMetric || !sa2FeatureList.length) return;
+                var m = DOT_METRICS[currentDotsMetric];
+                var perUnit = dotsPerUnitForZoom(map.getZoom());
+                var viewBounds = map.getBounds();
+                sa2FeatureList.forEach(function (entry) {
+                    var count = m.computeCount(entry.feature.properties);
+                    var inView = viewBounds.intersects(entry.bounds);
+                    var numDots = (inView && typeof count === 'number' && !isNaN(count) && count > 0)
+                        ? Math.round(count / perUnit) : 0;
+                    setSa2DotCount(currentDotsMetric, entry, numDots);
                 });
-                return group;
+                updateDotsCaption(perUnit);
+            }
+
+            function updateDotsCaption(perUnit) {
+                var capEl = document.getElementById('dots-legend-caption');
+                if (!currentDotsMetric) return;
+                var m = DOT_METRICS[currentDotsMetric];
+                var placementNote = sa1DataReady
+                    ? ' (positions are random within each area, weighted towards its denser neighbourhoods).'
+                    : ' (positions are random within each area).';
+                capEl.textContent = m.baseCaption + ' One dot \u2248 ' + perUnit.toLocaleString() +
+                    ' dwelling' + (perUnit === 1 ? '' : 's') + ' at the current zoom' + placementNote;
             }
 
             function renderDotsLegend(metricKey) {
                 var legendEl = document.getElementById('dots-legend');
-                var capEl = document.getElementById('dots-legend-caption');
                 if (!metricKey) {
                     legendEl.classList.remove('visible');
                     return;
                 }
-                var m = DOT_METRICS[metricKey];
-                capEl.textContent = m.caption;
                 legendEl.classList.add('visible');
             }
 
             function updateDotsDisplay(metricKey) {
+                if (currentDotsMetric && dotsMetricState[currentDotsMetric]) {
+                    map.removeLayer(dotsMetricState[currentDotsMetric].group);
+                }
                 currentDotsMetric = metricKey;
                 renderDotsLegend(metricKey);
-                if (currentDotsLayer) {
-                    map.removeLayer(currentDotsLayer);
-                    currentDotsLayer = null;
-                }
-                if (!metricKey || !sa2FeatureList.length) return;
-                if (!dotsCache[metricKey]) {
-                    dotsCache[metricKey] = buildDotsLayer(metricKey);
-                }
-                currentDotsLayer = dotsCache[metricKey];
-                if (currentDotsLayer) currentDotsLayer.addTo(map);
+                if (!metricKey) return;
+                ensureDotsMetricState(metricKey).group.addTo(map);
+                // Make sure SA1 sub-area data is loaded (or has failed/fallen back) before the
+                // first placement, so dots aren't placed uniformly and then never re-placed.
+                ensureSa1Data().then(function () {
+                    if (currentDotsMetric === metricKey) refreshDots();
+                });
             }
 
             function sa2TooltipHtml(metricKey, props) {
@@ -2528,6 +2703,10 @@
 
             document.getElementById('dots-select').addEventListener('change', function () {
                 updateDotsDisplay(this.value);
+            });
+
+            map.on('moveend', function () {
+                if (currentDotsMetric) refreshDots();
             });
 
             document.getElementById('zoom-on-click-toggle-input').addEventListener('change', function () {
