@@ -995,11 +995,11 @@
         </div>
 
         <div id="sa2-control">
-            <p class="freq-label">Area shading shows</p>
+            <p class="freq-label">Choropleth</p>
             <select id="sa2-select">
-                <option value="">Off (basemap only)</option>
+                <option value="" selected>Off</option>
                 <option value="pt400">Any PT within 400m</option>
-                <option value="pt800hq" selected>High-quality PT within 800m</option>
+                <option value="pt800hq">High-quality PT within 800m</option>
                 <option value="seifa_decile">SEIFA decile</option>
                 <option value="population">Population</option>
                 <option value="dwellings">Dwellings</option>
@@ -1016,7 +1016,7 @@
         </div>
 
         <div id="dots-control">
-            <p class="freq-label">Dots show</p>
+            <p class="freq-label">Dot Density</p>
             <select id="dots-select">
                 <option value="" selected>Off</option>
                 <option value="served_pt400">Dwellings served by PT</option>
@@ -1587,7 +1587,7 @@
             var sa2FeatureList = []; // { code, feature, layer, bounds } - used for manual hit-testing
             var activeSa2Code = null;
             var hoveredSa2Code = null;
-            var currentSa2Metric = 'pt800hq';
+            var currentSa2Metric = '';
             var hoverEffectsEnabled = true;
             var routeHoverId = null; // route currently hovered on the map, used to suppress SA2 hover feedback
 
@@ -1702,7 +1702,7 @@
                         return dwell * pct;
                     },
                     label: 'Dwellings served by PT',
-                    baseCaption: 'Estimated dwellings within 400m of any public transport service (bus, train or tram).',
+                    baseCaption: 'Dwellings within 400m of PT.',
                     color: '#000000'
                 },
                 isolated_pt400: {
@@ -1713,7 +1713,7 @@
                         return dwell * (1 - pct);
                     },
                     label: 'Dwellings isolated from PT',
-                    baseCaption: 'Estimated dwellings further than 400m from any public transport service.',
+                    baseCaption: 'Dwellings >400m from PT.',
                     color: '#000000'
                 },
                 served_pt800hq: {
@@ -1724,7 +1724,7 @@
                         return dwell * pct;
                     },
                     label: 'Dwellings served by high-quality PT',
-                    baseCaption: 'Estimated dwellings within 800m of a high-frequency public transport service.',
+                    baseCaption: 'Dwellings within 800m of high-quality PT.',
                     color: '#000000'
                 },
                 isolated_pt800hq: {
@@ -1735,7 +1735,7 @@
                         return dwell * (1 - pct);
                     },
                     label: 'Dwellings isolated from high-quality PT',
-                    baseCaption: 'Estimated dwellings further than 800m from a high-frequency public transport service.',
+                    baseCaption: 'Dwellings >800m from high-quality PT.',
                     color: '#000000'
                 }
             };
@@ -2147,8 +2147,8 @@
                 if (!currentDotsMetric) return;
                 var m = DOT_METRICS[currentDotsMetric];
                 var placementNote = sa1DataReady
-                    ? ' Positions are random within each area, weighted towards its denser neighbourhoods.'
-                    : ' Positions are random within each area.';
+                    ? ' Random positions within area.'
+                    : ' Random positions within area.';
                 ratioEl.innerHTML = '1 dot &#8776; <span class="dots-ratio-value">' + perUnit.toLocaleString() +
                     '</span> dwelling' + (perUnit === 1 ? '' : 's');
                 capEl.textContent = m.baseCaption + placementNote;
@@ -2421,7 +2421,7 @@
                     var hi = (sorted && sorted.length) ? sorted[sorted.length - 1] : m.domain[1];
                     minEl.textContent = 'Lowest (' + sa2FormatValue(m.format, lo) + ')';
                     maxEl.textContent = 'Highest (' + sa2FormatValue(m.format, hi) + ')';
-                    capEl.textContent = m.caption + ' Shaded by percentile rank among Melbourne SA2 areas, not raw value, so a few very large areas don\u2019t wash out the map.';
+                    capEl.textContent = m.caption;
                 } else {
                     minEl.textContent = sa2FormatValue(m.format, m.domain[0]);
                     maxEl.textContent = sa2FormatValue(m.format, m.domain[1]);
