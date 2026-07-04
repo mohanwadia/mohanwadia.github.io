@@ -629,6 +629,22 @@
             border-color: var(--accent);
         }
 
+        .dots-ratio {
+            margin-top: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text);
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .dots-ratio .dots-ratio-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
         /* ---------- Configure control ---------- */
         #configure-control {
             margin-top: 12px;
@@ -1009,6 +1025,7 @@
                 <option value="isolated_pt800hq">Dwellings isolated from high-quality PT</option>
             </select>
             <div class="sa2-legend" id="dots-legend">
+                <div class="dots-ratio" id="dots-ratio"></div>
                 <div class="sa2-legend-caption" id="dots-legend-caption"></div>
             </div>
         </div>
@@ -1064,6 +1081,12 @@
             // Dots overlay sits above the route lines so the dwelling dots stay visible.
             map.createPane('dotsPane');
             map.getPane('dotsPane').style.zIndex = 450;
+            // Dots are purely decorative - they never respond to clicks/hover themselves - but
+            // being on a higher-zIndex pane than the routes means the browser would otherwise
+            // deliver every click/hover on top of a dot to this pane's canvas first, silently
+            // swallowing clicks on the route line underneath. Disabling pointer-events on the
+            // whole pane makes it fully click-through, so routes stay clickable everywhere.
+            map.getPane('dotsPane').style.pointerEvents = 'none';
             var dotsRenderer = L.canvas({ pane: 'dotsPane', padding: 0.3 });
 
             // ---- Frequency data ----
@@ -1653,14 +1676,13 @@
             // from the end of the pool rather than discarding them.
             var DOTS_ZOOM_BREAKPOINTS = [
                 { zoom: 0, per: 500 },
-                { zoom: 11, per: 250 },
+                { zoom: 11, per: 200 },
                 { zoom: 12, per: 100 },
                 { zoom: 13, per: 50 },
-                { zoom: 14, per: 25 },
+                { zoom: 14, per: 20 },
                 { zoom: 15, per: 10 },
                 { zoom: 16, per: 5 },
-                { zoom: 17, per: 2 },
-                { zoom: 18, per: 1 }
+                { zoom: 17, per: 1 }
             ];
 
             function dotsPerUnitForZoom(zoom) {
@@ -2120,14 +2142,16 @@
             }
 
             function updateDotsCaption(perUnit) {
+                var ratioEl = document.getElementById('dots-ratio');
                 var capEl = document.getElementById('dots-legend-caption');
                 if (!currentDotsMetric) return;
                 var m = DOT_METRICS[currentDotsMetric];
                 var placementNote = sa1DataReady
-                    ? ' (positions are random within each area, weighted towards its denser neighbourhoods).'
-                    : ' (positions are random within each area).';
-                capEl.textContent = m.baseCaption + ' One dot \u2248 ' + perUnit.toLocaleString() +
-                    ' dwelling' + (perUnit === 1 ? '' : 's') + ' at the current zoom' + placementNote;
+                    ? ' Positions are random within each area, weighted towards its denser neighbourhoods.'
+                    : ' Positions are random within each area.';
+                ratioEl.innerHTML = '1 dot &#8776; <span class="dots-ratio-value">' + perUnit.toLocaleString() +
+                    '</span> dwelling' + (perUnit === 1 ? '' : 's');
+                capEl.textContent = m.baseCaption + placementNote;
             }
 
             function renderDotsLegend(metricKey) {
