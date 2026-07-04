@@ -605,6 +605,30 @@
             border-color: var(--accent);
         }
 
+        /* ---------- Dots overlay control ---------- */
+        #dots-control {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--hairline);
+        }
+
+        #dots-select {
+            width: 100%;
+            background: var(--ink-elevated);
+            border: 1px solid var(--hairline);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: var(--text);
+            font-family: 'Manrope', sans-serif;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #dots-select:focus {
+            border-color: var(--accent);
+        }
+
         /* ---------- Configure control ---------- */
         #configure-control {
             margin-top: 12px;
@@ -960,8 +984,6 @@
                 <option value="">Off (basemap only)</option>
                 <option value="pt400">Any PT within 400m</option>
                 <option value="pt800hq" selected>High-quality PT within 800m</option>
-                <option value="people_served">Dwellings served by high-quality PT</option>
-                <option value="people_isolated">Dwellings isolated from high-quality PT</option>
                 <option value="seifa_score">SEIFA score</option>
                 <option value="seifa_decile">SEIFA decile</option>
                 <option value="population">Population</option>
@@ -975,6 +997,20 @@
                     <span id="sa2-legend-max">–</span>
                 </div>
                 <div class="sa2-legend-caption" id="sa2-legend-caption"></div>
+            </div>
+        </div>
+
+        <div id="dots-control">
+            <p class="freq-label">Dots show</p>
+            <select id="dots-select">
+                <option value="" selected>Off</option>
+                <option value="served_pt400">Dwellings served by PT</option>
+                <option value="isolated_pt400">Dwellings isolated from PT</option>
+                <option value="served_pt800hq">Dwellings served by high-quality PT</option>
+                <option value="isolated_pt800hq">Dwellings isolated from high-quality PT</option>
+            </select>
+            <div class="sa2-legend" id="dots-legend">
+                <div class="sa2-legend-caption" id="dots-legend-caption"></div>
             </div>
         </div>
 
@@ -1025,6 +1061,11 @@
             map.createPane('sa2Pane');
             map.getPane('sa2Pane').style.zIndex = 250;
             var sa2Renderer = L.canvas({ pane: 'sa2Pane', padding: 0.3 });
+
+            // Dots overlay sits above the route lines so the dwelling dots stay visible.
+            map.createPane('dotsPane');
+            map.getPane('dotsPane').style.zIndex = 450;
+            var dotsRenderer = L.canvas({ pane: 'dotsPane', padding: 0.3 });
 
             // ---- Frequency data ----
             var FREQ_URL = 'https://cdn.jsdelivr.net/gh/adambain014/FrequencyFinder@main/route_jsons/summary.json';
@@ -1592,37 +1633,68 @@
                     label: 'Dwellings', shortLabel: 'Dwellings', format: 'count',
                     domain: [0, 21000], palette: 'count', colorBy: 'percentile',
                     caption: 'Estimated dwelling count by SA2, 2025.'
+                }
+            };
+
+            // ---- Dwelling dots overlay ----
+            // Each option computes an estimated dwelling count per SA2 (dwellings_2025 ×
+            // the relevant PT-access share, or its complement), the same formula used for
+            // the old people_served/people_isolated choropleth metrics. One dot is drawn
+            // per 100 dwellings in that count. Positions are randomly scattered within the
+            // SA2 boundary (rejection-sampled) - they don't represent real dwelling locations.
+            var DOTS_PER_UNIT = 100;
+            var DOT_METRICS = {
+                served_pt400: {
+                    computeCount: function (props) {
+                        var dwell = props['dwellings_2025'];
+                        var pct = props['% dwellings within 400m of any public transport service'];
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * pct;
+                    },
+                    label: 'Dwellings served by PT',
+                    caption: 'Estimated dwellings within 400m of any public transport service (bus, train or tram). One dot ≈ 100 dwellings, randomly placed within each area.',
+                    color: '#000000'
                 },
-                people_served: {
-                    // Estimated dwellings within 800m of a high-quality PT service:
-                    // dwellings_2025 × % dwellings with 800m of a high quality PT service.
-                    compute: function (props) {
+                isolated_pt400: {
+                    computeCount: function (props) {
+                        var dwell = props['dwellings_2025'];
+                        var pct = props['% dwellings within 400m of any public transport service'];
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * (1 - pct);
+                    },
+                    label: 'Dwellings isolated from PT',
+                    caption: 'Estimated dwellings further than 400m from any public transport service. One dot ≈ 100 dwellings, randomly placed within each area.',
+                    color: '#000000'
+                },
+                served_pt800hq: {
+                    computeCount: function (props) {
                         var dwell = props['dwellings_2025'];
                         var pct = props['% dwellings with 800m of a high quality public transport service'];
                         if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
                         return dwell * pct;
                     },
-                    label: 'Dwellings served by high-quality PT', shortLabel: 'Dwellings served', format: 'count',
-                    domain: [0, 23000], palette: 'access', colorBy: 'percentile',
-                    caption: 'Estimated dwellings within 800m of a high-frequency public transport service.'
+                    label: 'Dwellings served by high-quality PT',
+                    caption: 'Estimated dwellings within 800m of a high-frequency public transport service. One dot ≈ 100 dwellings, randomly placed within each area.',
+                    color: '#000000'
                 },
-                people_isolated: {
-                    // Estimated dwellings NOT within 800m of a high-quality PT service:
-                    // dwellings_2025 × (1 − % dwellings with 800m of a high quality PT service).
-                    compute: function (props) {
+                isolated_pt800hq: {
+                    computeCount: function (props) {
                         var dwell = props['dwellings_2025'];
                         var pct = props['% dwellings with 800m of a high quality public transport service'];
                         if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
                         return dwell * (1 - pct);
                     },
-                    label: 'Dwellings isolated from high-quality PT', shortLabel: 'Dwellings isolated', format: 'count',
-                    domain: [0, 37000], palette: 'access_rev', reversePercentile: true, colorBy: 'percentile',
-                    caption: 'Estimated dwellings further than 800m from a high-frequency public transport service.'
+                    label: 'Dwellings isolated from high-quality PT',
+                    caption: 'Estimated dwellings further than 800m from a high-frequency public transport service. One dot ≈ 100 dwellings, randomly placed within each area.',
+                    color: '#000000'
                 }
             };
+            var dotsCache = {}; // metricKey -> L.LayerGroup, built lazily and reused
+            var currentDotsLayer = null;
+            var currentDotsMetric = '';
 
             // Reads a metric's value for a feature's properties, supporting both plain
-            // property lookups (m.prop) and derived metrics (m.compute), e.g. people_served.
+            // property lookups (m.prop) and derived metrics (m.compute).
             function sa2MetricValue(metricKey, props) {
                 var m = SA2_METRICS[metricKey];
                 if (!m) return null;
@@ -1832,6 +1904,79 @@
                     if (pointInFeature(latlng, entry.feature)) return entry.code;
                 }
                 return null;
+            }
+
+            // ---- Dwelling dots overlay: random point-in-polygon sampling ----
+            // Rejection-samples random lat/lngs within an SA2's bounding box and keeps the
+            // ones that fall inside the actual polygon (reusing the same pointInFeature test
+            // as the SA2 hit-testing above), up to `count` points or a generous attempt cap.
+            function randomPointsInFeature(entry, count) {
+                var pts = [];
+                if (count <= 0) return pts;
+                var bounds = entry.bounds;
+                var south = bounds.getSouth(), north = bounds.getNorth();
+                var west = bounds.getWest(), east = bounds.getEast();
+                var attempts = 0;
+                var maxAttempts = Math.max(500, count * 60);
+                while (pts.length < count && attempts < maxAttempts) {
+                    attempts++;
+                    var lat = south + Math.random() * (north - south);
+                    var lng = west + Math.random() * (east - west);
+                    var ll = L.latLng(lat, lng);
+                    if (pointInFeature(ll, entry.feature)) pts.push(ll);
+                }
+                return pts;
+            }
+
+            function buildDotsLayer(metricKey) {
+                var m = DOT_METRICS[metricKey];
+                if (!m) return null;
+                var group = L.layerGroup();
+                sa2FeatureList.forEach(function (entry) {
+                    var count = m.computeCount(entry.feature.properties);
+                    if (typeof count !== 'number' || isNaN(count) || count <= 0) return;
+                    var numDots = Math.round(count / DOTS_PER_UNIT);
+                    if (numDots <= 0) return;
+                    var pts = randomPointsInFeature(entry, numDots);
+                    pts.forEach(function (ll) {
+                        L.circleMarker(ll, {
+                            renderer: dotsRenderer,
+                            pane: 'dotsPane',
+                            radius: 2,
+                            stroke: false,
+                            fillColor: m.color,
+                            fillOpacity: 0.85
+                        }).addTo(group);
+                    });
+                });
+                return group;
+            }
+
+            function renderDotsLegend(metricKey) {
+                var legendEl = document.getElementById('dots-legend');
+                var capEl = document.getElementById('dots-legend-caption');
+                if (!metricKey) {
+                    legendEl.classList.remove('visible');
+                    return;
+                }
+                var m = DOT_METRICS[metricKey];
+                capEl.textContent = m.caption;
+                legendEl.classList.add('visible');
+            }
+
+            function updateDotsDisplay(metricKey) {
+                currentDotsMetric = metricKey;
+                renderDotsLegend(metricKey);
+                if (currentDotsLayer) {
+                    map.removeLayer(currentDotsLayer);
+                    currentDotsLayer = null;
+                }
+                if (!metricKey || !sa2FeatureList.length) return;
+                if (!dotsCache[metricKey]) {
+                    dotsCache[metricKey] = buildDotsLayer(metricKey);
+                }
+                currentDotsLayer = dotsCache[metricKey];
+                if (currentDotsLayer) currentDotsLayer.addTo(map);
             }
 
             function sa2TooltipHtml(metricKey, props) {
@@ -2168,11 +2313,6 @@
                     sa2MetricCardHtml('pt800hq', props) +
                     '</div>';
 
-                html += '<div class="sa2-stat-pair">' +
-                    sa2StatCardHtml('people_served', props) +
-                    sa2StatCardHtml('people_isolated', props) +
-                    '</div>';
-
                 html += '<p class="block-label">Socio-economic profile</p>';
                 html += sa2SeifaCardHtml(props);
 
@@ -2386,6 +2526,10 @@
                 updateSa2Display(this.value);
             });
 
+            document.getElementById('dots-select').addEventListener('change', function () {
+                updateDotsDisplay(this.value);
+            });
+
             document.getElementById('zoom-on-click-toggle-input').addEventListener('change', function () {
                 zoomOnClickEnabled = this.checked;
             });
@@ -2431,6 +2575,7 @@
 
                     updateSa2Display(currentSa2Metric);
                     setupSa2Interaction();
+                    if (currentDotsMetric) updateDotsDisplay(currentDotsMetric);
 
                     // deep-link support: ?sa2=213011343
                     var sa2Params = new URLSearchParams(window.location.search);
