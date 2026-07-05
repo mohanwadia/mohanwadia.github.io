@@ -3221,22 +3221,27 @@
 
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') {
-                    // Close in order of priority: route detail > SA2 detail > picker > minimize settings
-                    if (activeId) {
-                        clearSelection();
+                    // Close in order of priority: picker > SA2 detail > route detail > settings > zoom to fit all
+                    if (pickerOpenIds) {
+                        closePicker();
                         return;
                     }
                     if (activeSa2Code) {
                         clearSa2Selection();
                         return;
                     }
-                    if (pickerOpenIds) {
-                        closePicker();
+                    if (activeId) {
+                        clearSelection();
                         return;
                     }
                     // If settings panel is expanded, minimize it
                     if (freqControlEl && freqControlEl.style.display !== 'none') {
                         collapseSettingsPanel();
+                        return;
+                    }
+                    // Finally, zoom to show all routes
+                    if (fullBounds) {
+                        map.fitBounds(fullBounds, { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
                     }
                 }
             });
