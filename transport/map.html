@@ -1515,6 +1515,7 @@
             var routesById = {};
             var listRowsById = {};
             var activeId = null;
+            var activeGroupIds = null; // all route_ids (shapes) belonging to the currently selected route
             var zoomOnClickEnabled = true;
             var fullBounds = null;
 
@@ -1543,10 +1544,10 @@
                 });
             }
 
-            function dimAllExcept(id) {
+            function dimAllExcept(ids) {
                 Object.keys(layersById).forEach(function (k) {
                     var layer = layersById[k];
-                    if (k === id) {
+                    if (ids.indexOf(k) !== -1) {
                         var fs = freqStyleForRoute(routesById[k].properties);
                         layer.setStyle({ weight: Math.max(fs.weight, 5), opacity: 1, dashArray: null });
                         layer.bringToFront();
@@ -1582,7 +1583,7 @@
                     matchedIds.push(id);
 
                     var row = document.createElement('div');
-                    row.className = 'row' + (id === activeId ? ' active' : '');
+                    row.className = 'row' + (isInActiveGroup(id) ? ' active' : '');
                     row.dataset.id = id;
 
                     var badge = document.createElement('div');
@@ -1618,7 +1619,7 @@
                 window.__filterActive = !!q;
                 order.forEach(function (id) {
                     var layer = layersById[id];
-                    if (id === activeId) return;
+                    if (isInActiveGroup(id)) return;
                     if (!isRouteBucketVisible(routesById[id].properties)) {
                         if (map.hasLayer(layer)) map.removeLayer(layer);
                         return;
@@ -1636,25 +1637,29 @@
             }
 
             function previewRoute(id) {
-                if (id === activeId) return;
-                var fs = freqStyleForRoute(routesById[id].properties);
-                if (activeId) {
-                    layersById[id].setStyle({ weight: Math.max(fs.weight + 1.5, 4.5), opacity: 1, dashArray: null });
-                } else {
-                    layersById[id].setStyle({ weight: Math.max(fs.weight + 1.5, 4.5), opacity: 1, dashArray: null });
-                }
-                layersById[id].bringToFront();
+                if (isInActiveGroup(id)) return;
+                routeGroupIds(id).forEach(function (gid) {
+                    if (!layersById[gid]) return;
+                    var fs = freqStyleForRoute(routesById[gid].properties);
+                    layersById[gid].setStyle({ weight: Math.max(fs.weight + 1.5, 4.5), opacity: 1, dashArray: null });
+                    layersById[gid].bringToFront();
+                });
             }
             function unpreviewRoute(id) {
-                if (id === activeId) return;
-                if (activeId) {
-                    layersById[id].setStyle({ weight: 2, opacity: 0.12, dashArray: null });
+                if (isInActiveGroup(id)) return;
+                if (activeGroupIds) {
+                    routeGroupIds(id).forEach(function (gid) {
+                        if (layersById[gid]) layersById[gid].setStyle({ weight: 2, opacity: 0.12, dashArray: null });
+                    });
                     return;
                 }
                 var q = searchEl.value.trim();
                 if (!q) {
-                    var fs = freqStyleForRoute(routesById[id].properties);
-                    layersById[id].setStyle({ weight: fs.weight, opacity: fs.opacity, dashArray: fs.dashArray });
+                    routeGroupIds(id).forEach(function (gid) {
+                        if (!layersById[gid]) return;
+                        var fs = freqStyleForRoute(routesById[gid].properties);
+                        layersById[gid].setStyle({ weight: fs.weight, opacity: fs.opacity, dashArray: fs.dashArray });
+                    });
                 } else {
                     renderList(q);
                 }
@@ -1663,15 +1668,25 @@
             function selectRoute(id, fly) {
                 clearSa2Selection();
                 activeId = id;
+                var groupIds = routeGroupIds(id);
+                activeGroupIds = groupIds;
                 var feature = routesById[id];
                 var props = feature.properties;
                 document.getElementById('panel').style.display = 'flex';
                 positionMiniPanel();
 
-                dimAllExcept(id);
+                dimAllExcept(groupIds);
 
                 if (fly !== false && zoomOnClickEnabled) {
-                    map.flyToBounds(layersById[id].getBounds(), { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
+                    var combinedBounds = null;
+                    groupIds.forEach(function (gid) {
+                        if (!layersById[gid]) return;
+                        var b = layersById[gid].getBounds();
+                        combinedBounds = combinedBounds ? combinedBounds.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
+                    });
+                    if (combinedBounds) {
+                        map.flyToBounds(combinedBounds, { paddingTopRight: [panelPad(), 40], paddingBottomLeft: [40, 40], duration: 0.6 });
+                    }
                 }
 
                 detailEl.style.display = 'block';
@@ -1727,6 +1742,7 @@
 
             function clearSelection() {
                 activeId = null;
+                activeGroupIds = null;
                 resetAllStyles();
                 document.getElementById('panel').style.display = 'none';
                 positionMiniPanel();
@@ -2536,7 +2552,40 @@
                 return Math.sqrt(minDistSq);
             }
 
-            // Finds every currently-visible route whose path passes within tolerance of latlng,
+            // Normalizes a route's identity for grouping multiple GTFS shapes (directions/branches/
+            // patterns) that represent the "same" logical route. Alphanumerics-only + lowercased on
+            // short_name (GTFS route_short_name can carry stray/invisible characters that differ
+            // between a route's shape variants), qualified by route_type so e.g. a bus "3" and a
+            // tram "3" are never treated as the same route.
+            function routeKeyForProps(props) {
+                var num = String(props.short_name).toLowerCase().replace(/[^a-z0-9]/g, '');
+                return props.route_type + ':' + num;
+            }
+
+            // Built once route data is loaded: maps a route key to every route_id (shape) sharing
+            // that key, so a click/hover on any one shape can resolve the full set belonging to the
+            // same logical route.
+            var idsByRouteKey = {};
+            function buildRouteGroups() {
+                idsByRouteKey = {};
+                Object.keys(routesById).forEach(function (id) {
+                    var key = routeKeyForProps(routesById[id].properties);
+                    (idsByRouteKey[key] || (idsByRouteKey[key] = [])).push(id);
+                });
+            }
+
+            // Returns every route_id (shape) belonging to the same logical route as `id`, so callers
+            // can treat multi-shape routes as one merged entity for highlighting/selection/zoom.
+            function routeGroupIds(id) {
+                var key = routeKeyForProps(routesById[id].properties);
+                return idsByRouteKey[key] || [id];
+            }
+
+            function isInActiveGroup(id) {
+                return !!activeGroupIds && activeGroupIds.indexOf(id) !== -1;
+            }
+
+
             // cheaply pre-filtered by each route's bounding box before doing the precise line test.
             function candidateRoutesAt(latlng) {
                 var pt = map.latLngToLayerPoint(latlng);
@@ -2559,18 +2608,14 @@
                     if (na !== nb) return na - nb;
                     return pa.short_name.localeCompare(pb.short_name);
                 });
-                // A single route number (e.g. "753") is often split across several route_id shapes
+                // A single logical route (e.g. "753") is often split across several route_id shapes
                 // — different directions/branches/patterns — which can all pass through the same
                 // point. Those aren't meaningfully different choices for the user, so keep only the
-                // first (by the sort above) route_id per unique route number + mode.
+                // first (by the sort above) route_id per unique route key (see routeKeyForProps).
                 var seenNumbers = {};
                 var deduped = [];
                 matches.forEach(function (id) {
-                    var props = routesById[id].properties;
-                    // Normalized to alphanumerics only (lowercased) since GTFS route_short_name
-                    // values can carry stray/invisible characters that differ between a route's
-                    // direction/pattern variants, which would otherwise defeat a naive dedup.
-                    var key = String(props.short_name).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    var key = routeKeyForProps(routesById[id].properties);
                     if (seenNumbers[key]) return;
                     seenNumbers[key] = true;
                     deduped.push(id);
@@ -2866,6 +2911,7 @@
             function selectSa2(code) {
                 if (activeId) {
                     activeId = null;
+                    activeGroupIds = null;
                     resetAllStyles();
                     updateUrl(null);
                 }
@@ -3163,6 +3209,7 @@
                     fc.features.forEach(function (f) {
                         routesById[f.properties.route_id] = f;
                     });
+                    buildRouteGroups();
 
                     var geoLayer = L.geoJSON(fc, {
                         style: function (f) { return baseStyle(f.properties); },
