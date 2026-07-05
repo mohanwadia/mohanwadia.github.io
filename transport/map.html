@@ -1167,8 +1167,7 @@
                 <option value="pt400">Any PT within 400m</option>
                 <option value="pt800hq">High-quality PT within 800m</option>
                 <option value="seifa_decile">SEIFA decile</option>
-                <option value="population">Population</option>
-                <option value="dwellings">Dwellings</option>
+                <option value="dwelling_density">Dwelling Density</option>
 
             </select>
             <div class="sa2-legend" id="sa2-legend">
@@ -1967,17 +1966,16 @@
                     domain: [1, 10], palette: 'seifa',
                     caption: 'SEIFA decile, 1 = most disadvantaged 10% of areas nationally, 10 = least.'
                 },
-                population: {
-                    prop: 'population_2025',
-                    label: 'Population', shortLabel: 'Population', format: 'count',
-                    domain: [0, 37000], palette: 'count', colorBy: 'percentile',
-                    caption: 'Estimated resident population by SA2, 2025.'
-                },
-                dwellings: {
-                    prop: 'dwellings_2025',
-                    label: 'Dwellings', shortLabel: 'Dwellings', format: 'count',
-                    domain: [0, 21000], palette: 'count', colorBy: 'percentile',
-                    caption: 'Estimated dwelling count by SA2, 2025.'
+                dwelling_density: {
+                    compute: function(props) {
+                        var dwellings = props.dwellings_2025;
+                        var area = props.area_km2;
+                        if (typeof dwellings !== 'number' || typeof area !== 'number' || area <= 0) return null;
+                        return dwellings / area;
+                    },
+                    label: 'Dwelling Density', shortLabel: 'Dwelling Density', format: 'count',
+                    domain: [0, 8000], palette: 'count', colorBy: 'percentile',
+                    caption: 'Estimated dwelling density (dwellings per km²) by SA2, 2025.'
                 }
             };
 
