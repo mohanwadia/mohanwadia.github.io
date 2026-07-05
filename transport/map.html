@@ -509,6 +509,74 @@
             z-index: 1000;
         }
 
+        .freq-control-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .freq-control-head .freq-label {
+            margin: 0;
+            padding-top: 4px;
+        }
+
+        .freq-control-head .detail-close-btn {
+            margin-left: 0;
+            margin-bottom: 0;
+            flex-shrink: 0;
+        }
+
+        /* ---------- Collapsed mini settings summary ---------- */
+        .settings-mini {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 176px;
+            background: var(--ink);
+            border: 1px solid var(--hairline);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px -18px rgba(10, 12, 18, 0.55), 0 2px 8px rgba(10, 12, 18, 0.35);
+            padding: 10px 12px;
+            z-index: 999;
+            cursor: pointer;
+            display: none;
+            transition: border-color .12s ease;
+        }
+
+        .settings-mini:hover,
+        .settings-mini:focus-visible {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        .settings-mini-title {
+            font-family: 'Source Serif 4', sans-serif;
+            font-weight: 600;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin: 0 0 6px;
+        }
+
+        .settings-mini-summary {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .settings-mini-summary div {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .settings-mini-summary strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
         .freq-label {
             font-family: 'Source Serif 4', sans-serif;
             font-weight: 600;
@@ -564,6 +632,30 @@
         .freq-legend-text {
             font-size: 11.5px;
             color: var(--text-muted);
+        }
+
+        /* ---------- Line width control ---------- */
+        #line-width-control {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--hairline);
+        }
+
+        #width-select {
+            width: 100%;
+            background: var(--ink-elevated);
+            border: 1px solid var(--hairline);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: var(--text);
+            font-family: 'Manrope', sans-serif;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #width-select:focus {
+            border-color: var(--accent);
         }
 
         /* ---------- Route type control ---------- */
@@ -933,6 +1025,12 @@
                 width: auto;
                 bottom: 12px;
             }
+
+            .settings-mini {
+                width: auto;
+                left: 12px;
+                right: 12px;
+            }
         }
     </style>
 </head>
@@ -972,15 +1070,34 @@
     </div>
 
     <div id="freq-control">
-        <p class="freq-label">Frequency</p>
-        <select id="freq-select">
-            <option value="weekday_am_peak">Weekday AM Peak</option>
-            <option value="weekday_midday" selected>Weekday Midday</option>
-            <option value="weekday_offpeak">Weekday Evening</option>
-            <option value="saturday_midday">Saturday Midday</option>
-            <option value="sunday_midday">Sunday Midday</option>
-        </select>
-        <div class="freq-legend" id="freq-legend"></div>
+        <div class="freq-control-head">
+            <p class="freq-label">Map settings</p>
+            <button type="button" class="detail-close-btn" id="settings-close-btn"
+                aria-label="Collapse settings panel">×</button>
+        </div>
+
+        <div id="line-colour-control">
+            <p class="freq-label">Line colour</p>
+            <select id="freq-select">
+                <option value="off">Off (GTFS default)</option>
+                <option value="weekday_am_peak">Weekday AM Peak</option>
+                <option value="weekday_midday" selected>Weekday Midday</option>
+                <option value="weekday_offpeak">Weekday Evening</option>
+                <option value="saturday_midday">Saturday Midday</option>
+                <option value="sunday_midday">Sunday Midday</option>
+            </select>
+            <div class="freq-legend" id="freq-legend"></div>
+        </div>
+
+        <div id="line-width-control">
+            <p class="freq-label">Line width</p>
+            <select id="width-select">
+                <option value="off">Off (uniform)</option>
+                <option value="mode">Mode</option>
+                <option value="frequency" selected>Frequency</option>
+                <option value="mode_frequency">Mode + Frequency</option>
+            </select>
+        </div>
 
         <div id="type-control">
             <p class="freq-label">Route type</p>
@@ -1043,6 +1160,11 @@
         </div>
     </div>
 
+    <div id="settings-mini" class="settings-mini" role="button" tabindex="0" aria-label="Expand map settings panel">
+        <p class="settings-mini-title">Map settings</p>
+        <div class="settings-mini-summary" id="settings-mini-summary"></div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script>
         (function () {
@@ -1096,7 +1218,19 @@
             // is disambiguated by its own "mode_type" field (3 = tram, 4 = bus).
             var freqById = { bus: {}, tram: {} };
             var MODE_TYPE_TO_ROUTE_TYPE = { '3': 'tram', '4': 'bus' };
+            // currentPeriod drives LINE COLOUR: one of the 5 day/time keys, or 'off' (GTFS default colour).
             var currentPeriod = 'weekday_midday';
+            // currentWidthMode drives LINE WIDTH: 'off' | 'mode' | 'frequency' | 'mode_frequency'.
+            var currentWidthMode = 'frequency';
+            var BASE_LINE_WIDTH = 3.2;
+            var TRAM_MODE_MULTIPLIER = 2;
+            var WIDTH_MODE_LABELS = { off: 'Off', mode: 'Mode', frequency: 'Frequency', mode_frequency: 'Mode + Frequency' };
+
+            // When LINE COLOUR is 'off' there's no period to derive frequency buckets/widths from,
+            // so those calculations fall back to weekday AM peak.
+            function effectiveFreqPeriod() {
+                return currentPeriod === 'off' ? 'weekday_am_peak' : currentPeriod;
+            }
 
             // ---- Route type visibility (Bus / Tram checkboxes) ----
             var routeTypeVisibility = { bus: true, tram: true };
@@ -1159,19 +1293,58 @@
                 return byType ? byType[props.short_name] : undefined;
             }
 
-            function freqStyleForRoute(props) {
+            // Colour comes from the LINE COLOUR setting: either the GTFS default (Off) or the
+            // frequency bucket for the selected day/time period.
+            function colorForRoute(props) {
+                if (currentPeriod === 'off') {
+                    return { color: props.color || '#333', opacity: 0.85, dashArray: null };
+                }
                 var entry = freqEntryForRoute(props);
                 var val = periodValue(entry, currentPeriod);
                 var bucket = freqBucket(val);
-                var style = { weight: bucket.weight, opacity: bucket.opacity, color: bucket.color || props.color || '#333' };
-                if (bucket.dash) { style.dashArray = bucket.dash; } else { style.dashArray = null; }
-                return style;
+                return { color: bucket.color || props.color || '#333', opacity: bucket.opacity, dashArray: bucket.dash || null };
+            }
+
+            // Width comes from the LINE WIDTH setting.
+            function widthForRoute(props) {
+                var entry = freqEntryForRoute(props);
+                switch (currentWidthMode) {
+                    case 'mode':
+                        return props.route_type === 'tram' ? BASE_LINE_WIDTH * TRAM_MODE_MULTIPLIER : BASE_LINE_WIDTH;
+                    case 'frequency': {
+                        var val = periodValue(entry, effectiveFreqPeriod());
+                        return freqBucket(val).weight;
+                    }
+                    case 'mode_frequency': {
+                        // Trams get treated as running at double the frequency of an equivalent bus
+                        // (halving the effective wait) before bucketing, so e.g. a 20-min tram lands
+                        // in the same width bucket as a 10-min bus.
+                        var val2 = periodValue(entry, effectiveFreqPeriod());
+                        if (props.route_type === 'tram' && val2 !== null && val2 !== undefined) {
+                            val2 = val2 / TRAM_MODE_MULTIPLIER;
+                        }
+                        return freqBucket(val2).weight;
+                    }
+                    case 'off':
+                    default:
+                        return BASE_LINE_WIDTH;
+                }
+            }
+
+            function freqStyleForRoute(props) {
+                var colorInfo = colorForRoute(props);
+                return {
+                    weight: widthForRoute(props),
+                    opacity: colorInfo.opacity,
+                    color: colorInfo.color,
+                    dashArray: colorInfo.dashArray
+                };
             }
 
             function isRouteBucketVisible(props) {
                 if (!routeTypeVisibility[props.route_type]) return false;
                 var entry = freqEntryForRoute(props);
-                var val = periodValue(entry, currentPeriod);
+                var val = periodValue(entry, effectiveFreqPeriod());
                 if (val === null || val === undefined || val === 0) return false;
                 var bucket = freqBucket(val);
                 return !!bucketVisibility[bucket.key];
@@ -1183,8 +1356,9 @@
             // visually swallowed by the bolder lines of a frequent route running alongside them.
             function restackRoutesByFrequency() {
                 var order = Object.keys(layersById).slice().sort(function (a, b) {
-                    var va = periodValue(freqEntryForRoute(routesById[a].properties), currentPeriod);
-                    var vb = periodValue(freqEntryForRoute(routesById[b].properties), currentPeriod);
+                    var period = effectiveFreqPeriod();
+                    var va = periodValue(freqEntryForRoute(routesById[a].properties), period);
+                    var vb = periodValue(freqEntryForRoute(routesById[b].properties), period);
                     if (va === null || va === undefined || isNaN(va)) va = Infinity;
                     if (vb === null || vb === undefined || isNaN(vb)) vb = Infinity;
                     return va - vb; // ascending: most-frequent (shortest wait) first, so it's drawn/stacked first
@@ -1245,6 +1419,7 @@
                     input.addEventListener('change', function () {
                         bucketVisibility[this.dataset.key] = this.checked;
                         updateRouteVisibility();
+                        renderSettingsSummary();
                     });
                 });
             }
@@ -1447,6 +1622,7 @@
                 var feature = routesById[id];
                 var props = feature.properties;
                 document.getElementById('panel').style.display = 'flex';
+                positionMiniPanel();
 
                 dimAllExcept(id);
 
@@ -1461,7 +1637,7 @@
                 if (freqEntry) {
                     Object.keys(PERIODS).forEach(function (key) {
                         var val = periodValue(freqEntry, key);
-                        freqHtml += '<div class="freq-row' + (key === currentPeriod ? ' current' : '') + '">' +
+                        freqHtml += '<div class="freq-row' + (key === effectiveFreqPeriod() ? ' current' : '') + '">' +
                             '<span class="freq-row-period">' + escapeHtml(PERIODS[key].label) + '</span>' +
                             '<span class="freq-row-value">' + escapeHtml(fmtFreqValue(val)) + '</span>' +
                             '</div>';
@@ -1509,6 +1685,7 @@
                 activeId = null;
                 resetAllStyles();
                 document.getElementById('panel').style.display = 'none';
+                positionMiniPanel();
                 detailEl.style.display = 'none';
                 detailEl.innerHTML = '';
                 renderList(searchEl.value);
@@ -1551,6 +1728,69 @@
                 renderList(searchEl.value);
             });
 
+            // ---- Collapsed "mini" settings summary panel ----
+            var freqControlEl = document.getElementById('freq-control');
+            var settingsMiniEl = document.getElementById('settings-mini');
+            var settingsCloseBtn = document.getElementById('settings-close-btn');
+            var settingsMiniSummaryEl = document.getElementById('settings-mini-summary');
+
+            function renderSettingsSummary() {
+                if (!settingsMiniSummaryEl) return;
+                var colourLabel = currentPeriod === 'off' ? 'Off (GTFS default)' : (PERIODS[currentPeriod] ? PERIODS[currentPeriod].label : currentPeriod);
+                var widthLabel = WIDTH_MODE_LABELS[currentWidthMode] || currentWidthMode;
+                var types = [];
+                if (routeTypeVisibility.bus) types.push('Bus');
+                if (routeTypeVisibility.tram) types.push('Tram');
+
+                var sa2SelectEl = document.getElementById('sa2-select');
+                var sa2Label = (sa2SelectEl && sa2SelectEl.selectedOptions[0]) ? sa2SelectEl.selectedOptions[0].text : 'Off';
+                var dotsSelectEl = document.getElementById('dots-select');
+                var dotsLabel = (dotsSelectEl && dotsSelectEl.selectedOptions[0]) ? dotsSelectEl.selectedOptions[0].text : 'Off';
+
+                settingsMiniSummaryEl.innerHTML =
+                    '<div><strong>Colour</strong> ' + escapeHtmlGlobal(colourLabel) + '</div>' +
+                    '<div><strong>Width</strong> ' + escapeHtmlGlobal(widthLabel) + '</div>' +
+                    '<div><strong>Types</strong> ' + escapeHtmlGlobal(types.join(' + ') || 'None') + '</div>' +
+                    '<div><strong>Choropleth</strong> ' + escapeHtmlGlobal(sa2Label) + '</div>' +
+                    '<div><strong>Dots</strong> ' + escapeHtmlGlobal(dotsLabel) + '</div>';
+            }
+
+            // The mini panel sits top-right, same corner as the route detail/search panel (#panel),
+            // which only appears once a route or SA2 is selected. If that panel is visible, nudge
+            // the mini panel down below it so the two never overlap.
+            function positionMiniPanel() {
+                if (!settingsMiniEl || settingsMiniEl.style.display === 'none') return;
+                var panelEl = document.getElementById('panel');
+                if (panelEl && getComputedStyle(panelEl).display !== 'none') {
+                    var rect = panelEl.getBoundingClientRect();
+                    settingsMiniEl.style.top = (rect.bottom + 12) + 'px';
+                } else {
+                    settingsMiniEl.style.top = '16px';
+                }
+            }
+
+            function collapseSettingsPanel() {
+                freqControlEl.style.display = 'none';
+                renderSettingsSummary();
+                settingsMiniEl.style.display = 'block';
+                positionMiniPanel();
+            }
+
+            function expandSettingsPanel() {
+                settingsMiniEl.style.display = 'none';
+                freqControlEl.style.display = '';
+            }
+
+            settingsCloseBtn.addEventListener('click', collapseSettingsPanel);
+            settingsMiniEl.addEventListener('click', expandSettingsPanel);
+            settingsMiniEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    expandSettingsPanel();
+                }
+            });
+            window.addEventListener('resize', positionMiniPanel);
+
             var freqSelectEl = document.getElementById('freq-select');
             freqSelectEl.value = currentPeriod;
             freqSelectEl.addEventListener('change', function () {
@@ -1563,14 +1803,31 @@
                 updateRouteVisibility();
                 restackRoutesByFrequency();
                 renderList(searchEl.value);
+                renderSettingsSummary();
+            });
+
+            var widthSelectEl = document.getElementById('width-select');
+            widthSelectEl.value = currentWidthMode;
+            widthSelectEl.addEventListener('change', function () {
+                currentWidthMode = widthSelectEl.value;
+                if (activeId) {
+                    selectRoute(activeId, false); // restyles map + refreshes detail panel for new width mode
+                } else {
+                    resetAllStyles();
+                }
+                updateRouteVisibility();
+                restackRoutesByFrequency();
+                renderSettingsSummary();
             });
 
             renderLegend();
+            renderSettingsSummary();
 
             document.querySelectorAll('.route-type-toggle').forEach(function (input) {
                 input.addEventListener('change', function () {
                     routeTypeVisibility[this.dataset.type] = this.checked;
                     updateRouteVisibility();
+                    renderSettingsSummary();
                 });
             });
 
@@ -2188,12 +2445,13 @@
             function routeTooltipHtml(id) {
                 var props = routesById[id].properties;
                 var freqEntry = freqEntryForRoute(props);
-                var val = periodValue(freqEntry, currentPeriod);
+                var period = effectiveFreqPeriod();
+                var val = periodValue(freqEntry, period);
                 return '<div class="tt-name">' +
                     '<span class="tt-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtmlGlobal(props.short_name) + '</span>' +
                     escapeHtmlGlobal(props.long_name) +
                     '</div>' +
-                    '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[currentPeriod].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
+                    '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[period].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
             }
 
             function pointToSegmentDistSq(p, a, b) {
@@ -2334,14 +2592,15 @@
                 ids.forEach(function (id) {
                     var props = routesById[id].properties;
                     var freqEntry = freqEntryForRoute(props);
-                    var val = periodValue(freqEntry, currentPeriod);
+                    var period = effectiveFreqPeriod();
+                    var val = periodValue(freqEntry, period);
                     var row = document.createElement('div');
                     row.className = 'tt-row' + (pinned ? ' tt-row-pick' : '');
                     row.innerHTML = '<div class="tt-name">' +
                         '<span class="tt-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtmlGlobal(props.short_name) + '</span>' +
                         escapeHtmlGlobal(props.long_name) +
                         '</div>' +
-                        '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[currentPeriod].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
+                        '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[period].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
                     if (pinned) {
                         row.tabIndex = 0;
                         row.setAttribute('role', 'button');
@@ -2559,6 +2818,7 @@
                     }
                 }
                 document.getElementById('panel').style.display = 'flex';
+                positionMiniPanel();
                 renderSa2Detail(code);
                 updateSa2Url(code);
             }
@@ -2572,6 +2832,7 @@
                 }
                 activeSa2Code = null;
                 document.getElementById('panel').style.display = 'none';
+                positionMiniPanel();
                 detailEl.style.display = 'none';
                 detailEl.innerHTML = '';
                 updateSa2Url(null);
@@ -2723,10 +2984,12 @@
 
             document.getElementById('sa2-select').addEventListener('change', function () {
                 updateSa2Display(this.value);
+                renderSettingsSummary();
             });
 
             document.getElementById('dots-select').addEventListener('change', function () {
                 updateDotsDisplay(this.value);
+                renderSettingsSummary();
             });
 
             map.on('moveend', function () {
