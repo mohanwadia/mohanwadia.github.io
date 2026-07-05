@@ -3108,6 +3108,17 @@
                         if (routeHoverId) clearRouteHoverState();
                     }
 
+                    // Don't hover SA2s when a route picker is open
+                    if (pickerOpenIds) {
+                        if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                            sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                        }
+                        hoveredSa2Code = null;
+                        hideSa2Tooltip();
+                        mapContainer.style.cursor = '';
+                        return;
+                    }
+
                     var code = findSa2AtLatLng(latlng);
 
                     if (code === hoveredSa2Code) {
