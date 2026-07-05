@@ -511,6 +511,17 @@
             box-shadow: 0 20px 50px -18px rgba(10, 12, 18, 0.55), 0 2px 8px rgba(10, 12, 18, 0.35);
             padding: 14px 16px 16px;
             z-index: 1000;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+        }
+
+        #freq-control::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #freq-control::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+            border-radius: 6px;
         }
 
         .freq-control-head {
@@ -535,7 +546,7 @@
         .settings-mini {
             position: absolute;
             top: 16px;
-            right: 16px;
+            left: 16px;
             width: 176px;
             background: var(--ink);
             border: 1px solid var(--hairline);
@@ -836,6 +847,17 @@
             padding: 8px 10px !important;
             font-family: 'Manrope', sans-serif !important;
             box-shadow: 0 12px 30px -10px rgba(10, 12, 18, 0.6) !important;
+            max-height: min(400px, calc(100vh - 24px)) !important;
+            overflow-y: auto !important;
+        }
+
+        .sa2-tooltip::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sa2-tooltip::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+            border-radius: 6px;
         }
 
         .sa2-tooltip::before {
@@ -889,13 +911,14 @@
         }
 
         .tt-combined-freq {
-            font-size: 11.5px;
-            font-weight: 600;
+            font-size: 12.5px;
+            font-weight: 400;
             color: var(--text);
-            background: rgba(0, 0, 0, 0.04);
-            border-radius: 5px;
-            padding: 4px 7px;
             margin-bottom: 7px;
+        }
+
+        .tt-combined-freq strong {
+            font-weight: 700;
         }
 
         .tt-picker-close {
@@ -1033,17 +1056,20 @@
             }
 
             #freq-control {
-                top: auto;
-                right: 12px;
+                top: 12px;
                 left: 12px;
+                right: 12px;
                 width: auto;
-                bottom: 12px;
+                bottom: auto;
+                max-height: calc(100vh - 24px);
             }
 
             .settings-mini {
-                width: auto;
+                top: 12px;
                 left: 12px;
-                right: 12px;
+                right: auto;
+                width: auto;
+                max-width: calc(100vw - 24px);
             }
         }
     </style>
@@ -1093,7 +1119,7 @@
         <div id="line-colour-control">
             <p class="freq-label">Line colour</p>
             <select id="freq-select">
-                <option value="off">Off (GTFS default)</option>
+                <option value="off">Off</option>
                 <option value="weekday_am_peak">Weekday AM Peak</option>
                 <option value="weekday_midday" selected>Weekday Midday</option>
                 <option value="weekday_offpeak">Weekday Evening</option>
@@ -1469,14 +1495,15 @@
 
             // Formats a combined-frequency minutes value. Once services are frequent enough
             // (<= 2.5 min apart) minutes stop being a meaningful unit, so switch to seconds
-            // rounded to the nearest 10.
+            // rounded to the nearest 10. Returns {prefix, bold} so callers can render the
+            // "x minutes/seconds" portion in bold while the rest stays regular weight.
             function fmtCombinedFreqValue(min) {
                 if (min === null || min === undefined || isNaN(min)) return null;
                 if (min <= 2.5) {
                     var secs = Math.round((min * 60) / 10) * 10;
-                    return 'Services approx. every ' + secs + ' sec';
+                    return { prefix: 'Services approx. every ', bold: secs + ' sec' };
                 }
-                return 'Services approx. every ' + Math.round(min) + ' min';
+                return { prefix: 'Services approx. every ', bold: Math.round(min) + ' min' };
             }
 
             var listEl = document.getElementById('list');
@@ -1753,7 +1780,7 @@
 
             function renderSettingsSummary() {
                 if (!settingsMiniSummaryEl) return;
-                var colourLabel = currentPeriod === 'off' ? 'Off (GTFS default)' : (PERIODS[currentPeriod] ? PERIODS[currentPeriod].label : currentPeriod);
+                var colourLabel = currentPeriod === 'off' ? 'Off' : (PERIODS[currentPeriod] ? PERIODS[currentPeriod].label : currentPeriod);
                 var widthLabel = WIDTH_MODE_LABELS[currentWidthMode] || currentWidthMode;
                 var types = [];
                 if (routeTypeVisibility.bus) types.push('Bus');
@@ -2459,14 +2486,19 @@
 
             function routeTooltipHtml(id) {
                 var props = routesById[id].properties;
-                var freqEntry = freqEntryForRoute(props);
-                var period = effectiveFreqPeriod();
-                var val = periodValue(freqEntry, period);
-                return '<div class="tt-name">' +
+                var nameHtml = '<div class="tt-name">' +
                     '<span class="tt-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtmlGlobal(props.short_name) + '</span>' +
                     escapeHtmlGlobal(props.long_name) +
-                    '</div>' +
-                    '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[period].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
+                    '</div>';
+                // When Line Colour is Off, there's no selected period to report frequency for,
+                // so the hover tooltip shows just the route name/number with no detail row.
+                if (currentPeriod === 'off') return nameHtml;
+                var freqEntry = freqEntryForRoute(props);
+                var period = currentPeriod;
+                var val = periodValue(freqEntry, period);
+                var bucketColor = freqBucket(val).color;
+                return nameHtml +
+                    '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[period].label) + ': <strong style="color:' + bucketColor + '">' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
             }
 
             function pointToSegmentDistSq(p, a, b) {
@@ -2602,34 +2634,43 @@
                 }
                 el.appendChild(headerRow);
 
-                var combinedPeriod = effectiveFreqPeriod();
-                var combinedWaits = ids.map(function (id) {
-                    var p = routesById[id].properties;
-                    return periodValue(freqEntryForRoute(p), combinedPeriod);
-                });
-                var combinedWait = harmonicMeanWait(combinedWaits);
-                var combinedText = fmtCombinedFreqValue(combinedWait);
-                if (combinedText) {
-                    var combinedRow = document.createElement('div');
-                    combinedRow.className = 'tt-combined-freq';
-                    combinedRow.textContent = combinedText;
-                    el.appendChild(combinedRow);
+                if (currentPeriod !== 'off') {
+                    var combinedPeriod = currentPeriod;
+                    var combinedWaits = ids.map(function (id) {
+                        var p = routesById[id].properties;
+                        return periodValue(freqEntryForRoute(p), combinedPeriod);
+                    });
+                    var combinedWait = harmonicMeanWait(combinedWaits);
+                    var combinedParts = fmtCombinedFreqValue(combinedWait);
+                    if (combinedParts) {
+                        var combinedRow = document.createElement('div');
+                        combinedRow.className = 'tt-combined-freq';
+                        combinedRow.innerHTML = escapeHtmlGlobal(combinedParts.prefix) +
+                            '<strong>' + escapeHtmlGlobal(combinedParts.bold) + '</strong>';
+                        el.appendChild(combinedRow);
+                    }
                 }
 
                 var list = document.createElement('div');
                 list.className = 'tt-multi-list';
                 ids.forEach(function (id) {
                     var props = routesById[id].properties;
-                    var freqEntry = freqEntryForRoute(props);
-                    var period = effectiveFreqPeriod();
-                    var val = periodValue(freqEntry, period);
                     var row = document.createElement('div');
                     row.className = 'tt-row' + (pinned ? ' tt-row-pick' : '');
-                    row.innerHTML = '<div class="tt-name">' +
+                    var nameHtml = '<div class="tt-name">' +
                         '<span class="tt-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtmlGlobal(props.short_name) + '</span>' +
                         escapeHtmlGlobal(props.long_name) +
-                        '</div>' +
-                        '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[period].label) + ': <strong>' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
+                        '</div>';
+                    if (currentPeriod === 'off') {
+                        row.innerHTML = nameHtml;
+                    } else {
+                        var freqEntry = freqEntryForRoute(props);
+                        var period = currentPeriod;
+                        var val = periodValue(freqEntry, period);
+                        var bucketColor = freqBucket(val).color;
+                        row.innerHTML = nameHtml +
+                            '<div class="tt-value">' + escapeHtmlGlobal(PERIODS[period].label) + ': <strong style="color:' + bucketColor + '">' + escapeHtmlGlobal(fmtFreqValue(val)) + '</strong></div>';
+                    }
                     if (pinned) {
                         row.tabIndex = 0;
                         row.setAttribute('role', 'button');
@@ -2802,12 +2843,6 @@
 
                 html += '<p class="block-label">Socio-economic profile</p>';
                 html += sa2SeifaCardHtml(props);
-
-                html += '<p class="block-label">Population &amp; dwellings</p>';
-                html += '<div class="sa2-stat-pair">' +
-                    sa2StatCardHtml('population', props) +
-                    sa2StatCardHtml('dwellings', props) +
-                    '</div>';
 
                 return html;
             }
