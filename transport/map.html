@@ -1717,34 +1717,14 @@
                 if (freqEntry) {
                     Object.keys(PERIODS).forEach(function (key) {
                         var val = periodValue(freqEntry, key);
+                        var bucket = freqBucket(val);
                         freqHtml += '<div class="freq-row' + (key === effectiveFreqPeriod() ? ' current' : '') + '">' +
                             '<span class="freq-row-period">' + escapeHtml(PERIODS[key].label) + '</span>' +
-                            '<span class="freq-row-value">' + escapeHtml(fmtFreqValue(val)) + '</span>' +
+                            '<span class="freq-row-value" style="color:' + bucket.color + '">' + escapeHtml(fmtFreqValue(val)) + '</span>' +
                             '</div>';
                     });
                 } else {
                     freqHtml += '<div class="freq-row"><span class="freq-row-period">No frequency data available for this route.</span></div>';
-                }
-
-                var spanHtml = '<p class="block-label">Service span</p>';
-                if (freqEntry && freqEntry.span_stats) {
-                    var spanByDay = {};
-                    freqEntry.span_stats.forEach(function (row) { spanByDay[row.day] = row; });
-                    var spanGroups = [
-                        { label: 'Weekday', day: 'monday' },
-                        { label: 'Saturday', day: 'saturday' },
-                        { label: 'Sunday', day: 'sunday' }
-                    ];
-                    spanGroups.forEach(function (g) {
-                        var row = spanByDay[g.day];
-                        if (!row) return;
-                        spanHtml += '<div class="span-row">' +
-                            '<p class="span-row-label">' + escapeHtml(g.label) + '</p>' +
-                            '<p class="span-row-value">' + minutesToClock(row.full_coverage_start) + ' – ' + minutesToClock(row.full_coverage_end) + '</p>' +
-                            '</div>';
-                    });
-                } else {
-                    spanHtml += '<div class="span-row"><p class="span-row-value">No span data available.</p></div>';
                 }
 
                 detailEl.innerHTML =
@@ -1753,7 +1733,6 @@
                     '</div>' +
                     '<div class="detail-badge" style="background:' + props.color + ';color:' + props.text_color + '">' + escapeHtml(props.short_name) + '</div>' +
                     '<h2 class="detail-title">' + escapeHtml(props.long_name) + '</h2>' +
-                    spanHtml +
                     freqHtml;
 
                 document.getElementById('back-btn').addEventListener('click', clearSelection);
