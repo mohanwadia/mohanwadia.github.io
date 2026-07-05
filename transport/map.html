@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>Melbourne Bus &amp; Tram Routes — mohanwadia.com</title>
+    <title>Melbourne Transit Map</title>
     <meta name="description"
-        content="Every metropolitan Melbourne bus and tram route, drawn from PTV GTFS schedule data. Click a route to see its path and timetable details.">
+        content="Explore Melbourne's complex Public Transit Network">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2780,9 +2780,18 @@
             }
 
             function showMultiRouteTooltip(ids, clientX, clientY, pinned) {
-                if (!hoverEffectsEnabled) return;
-                // Don't show hover tooltip if a route or SA2 detail panel is open (unless pinned,
-                // i.e., this is the interactive picker that was just clicked open)
+                // Only check hoverEffectsEnabled when hovering (not pinned). When pinned (picker opened by click),
+                // always show the UI regardless of hover effects setting. Cursor will still show on hover.
+                if (!hoverEffectsEnabled && !pinned) {
+                    // Show just an info icon when details are hidden on hover
+                    var el = document.getElementById('route-hover-tooltip');
+                    el.style.maxWidth = '300px';
+                    el.innerHTML = '<div style="font-size:20px;text-align:center;">ℹ️</div>';
+                    el.style.display = 'block';
+                    el.style.pointerEvents = 'none';
+                    positionTooltipEl(el, clientX, clientY);
+                    return;
+                }
                 if (!pinned && (activeId || activeSa2Code)) return;
                 var el = document.getElementById('route-hover-tooltip');
                 el.style.maxWidth = '300px';
@@ -3004,15 +3013,19 @@
             }
 
             function showSa2Tooltip(code, clientX, clientY) {
-                if (!hoverEffectsEnabled) return;
                 // Don't show hover tooltip if a route or SA2 detail panel is open
                 if (activeId || activeSa2Code) return;
                 var layer = sa2LayersByCode[code];
                 if (!layer) return;
                 var el = document.getElementById('sa2-hover-tooltip');
-                el.innerHTML = currentSa2Metric
-                    ? sa2TooltipHtml(currentSa2Metric, layer.feature.properties)
-                    : sa2NameOnlyTooltipHtml(layer.feature.properties);
+                if (hoverEffectsEnabled) {
+                    el.innerHTML = currentSa2Metric
+                        ? sa2TooltipHtml(currentSa2Metric, layer.feature.properties)
+                        : sa2NameOnlyTooltipHtml(layer.feature.properties);
+                } else {
+                    // Show just an info icon when details are hidden
+                    el.innerHTML = '<div style="font-size:20px;text-align:center;">ℹ️</div>';
+                }
                 el.style.display = 'block';
                 positionTooltipEl(el, clientX, clientY);
             }
@@ -3053,13 +3066,17 @@
             }
 
             function showRouteTooltip(id, clientX, clientY) {
-                if (!hoverEffectsEnabled) return;
                 // Don't show hover tooltip if a route or SA2 detail panel is open
                 if (activeId || activeSa2Code) return;
                 var el = document.getElementById('route-hover-tooltip');
                 el.style.maxWidth = '240px';
                 el.style.pointerEvents = 'none';
-                el.innerHTML = routeTooltipHtml(id);
+                if (hoverEffectsEnabled) {
+                    el.innerHTML = routeTooltipHtml(id);
+                } else {
+                    // Show just an info icon when details are hidden
+                    el.innerHTML = '<div style="font-size:20px;text-align:center;">ℹ️</div>';
+                }
                 el.style.display = 'block';
                 positionTooltipEl(el, clientX, clientY);
             }
