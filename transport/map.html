@@ -367,38 +367,39 @@
             display: flex;
             align-items: baseline;
             justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         .sa2-seifa-score {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 21px;
+            font-size: 18px;
             font-weight: 600;
             color: var(--text);
             flex-shrink: 0;
         }
 
         .sa2-seifa-band {
-            font-size: 12px;
-            color: var(--text-muted);
+            font-size: 11px;
+            color: var(--text);
             text-align: right;
+            font-weight: 500;
         }
 
         .sa2-decile-scale {
             position: relative;
-            height: 8px;
-            border-radius: 4px;
-            margin: 4px 0 6px;
+            height: 6px;
+            border-radius: 3px;
+            margin: 4px 0 4px;
         }
 
         .sa2-decile-marker {
             position: absolute;
-            top: -4px;
-            width: 3px;
-            height: 16px;
+            top: -3px;
+            width: 2px;
+            height: 12px;
             background: #fff;
-            border-radius: 2px;
+            border-radius: 1px;
             box-shadow: 0 0 0 1px rgba(10, 12, 18, 0.5);
             transform: translateX(-50%);
         }
@@ -406,7 +407,7 @@
         .sa2-decile-labels {
             display: flex;
             justify-content: space-between;
-            font-size: 9.5px;
+            font-size: 9px;
             color: var(--text-muted);
         }
 
@@ -442,6 +443,18 @@
             font-size: 10px;
             color: var(--text-muted);
             margin: 0;
+        }
+
+        /* Area profile: side-by-side SEIFA and Dwelling Density */
+        .sa2-area-profile {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .sa2-area-profile .sa2-seifa-card {
+            margin-bottom: 0;
         }
 
         .direction {
@@ -1929,10 +1942,10 @@
             var pickerOpenIds = null; // non-null while the click-to-pick popup is pinned open
 
             var SA2_COLOR_STOPS = {
-                access: ['#c0392b', '#e67e22', '#f1c40f', '#7dbb54', '#1a8a4a'],   // red -> amber -> yellow -> green
-                access_rev: ['#1a8a4a', '#7dbb54', '#f1c40f', '#e67e22', '#c0392b'],   // green -> amber -> red (bad when high)
-                seifa: ['#eef4fb', '#b7d3ea', '#6fa8d6', '#3573b0', '#0d3f70'],   // light -> dark blue
-                count: ['#2a2110', '#6b4a1a', '#a86d1f', '#d69331', '#FFB020']    // dark -> accent amber
+                access: ['#ff8a80', '#ff6b6b', '#ffaa33', '#66dd99', '#22aa44'],   // light red -> dark green (light to dark, red=bad to green=good)
+                access_rev: ['#22aa44', '#66dd99', '#ffaa33', '#ff6b6b', '#ff8a80'],   // reversed for metrics where high is bad
+                seifa: ['#e8f4ff', '#a8d8ff', '#6ba8ff', '#2563eb', '#1a3a7a'],   // light blue -> dark blue
+                count: ['#fff3e0', '#ffcc80', '#ffaa33', '#ff8811', '#cc5500']    // light amber -> dark brown (light to dark)
             };
 
             var SA2_METRICS = {
@@ -2768,6 +2781,7 @@
                 currentHoverIds = ids;
                 pickerOpenIds = ids;
                 routeHoverId = ids[0];
+                dimAllExcept(ids);
                 showMultiRouteTooltip(ids, clientX, clientY, true);
                 map.getContainer().style.cursor = 'pointer';
             }
@@ -2864,13 +2878,13 @@
                 var markerPct = hasDecile ? ((decile - 1) / 9) * 100 : null;
                 return '<div class="sa2-seifa-card">' +
                     '<div class="sa2-seifa-head">' +
-                    '<span class="sa2-seifa-score">' + escapeHtml(hasScore ? Math.round(score).toLocaleString() : '—') + '</span>' +
-                    '<span class="sa2-seifa-band">' + escapeHtml(band || 'No data') + (hasDecile ? ' · Decile ' + Math.round(decile) : '') + '</span>' +
+                    '<span class="sa2-seifa-score">' + escapeHtml(hasScore ? Math.round(score) : '—') + '</span>' +
+                    '<span class="sa2-seifa-band">' + escapeHtml(band || 'No data') + (hasDecile ? '<br/>D' + Math.round(decile) : '') + '</span>' +
                     '</div>' +
                     '<div class="sa2-decile-scale" style="background:linear-gradient(to right,' + stops.join(',') + ')">' +
                     (markerPct !== null ? '<div class="sa2-decile-marker" style="left:' + markerPct + '%"></div>' : '') +
                     '</div>' +
-                    '<div class="sa2-decile-labels"><span>Most disadvantaged</span><span>Most advantaged</span></div>' +
+                    '<div class="sa2-decile-labels"><span>Low</span><span>High</span></div>' +
                     '</div>';
             }
 
@@ -2895,8 +2909,11 @@
                     sa2MetricCardHtml('pt800hq', props) +
                     '</div>';
 
-                html += '<p class="block-label">Socio-economic profile</p>';
-                html += sa2SeifaCardHtml(props);
+                html += '<p class="block-label">Area profile</p>';
+                html += '<div class="sa2-area-profile">' +
+                    sa2SeifaCardHtml(props) +
+                    sa2MetricCardHtml('dwelling_density', props) +
+                    '</div>';
 
                 return html;
             }
@@ -2963,6 +2980,8 @@
 
             function showSa2Tooltip(code, clientX, clientY) {
                 if (!hoverEffectsEnabled) return;
+                // Don't show hover tooltip if a route or SA2 detail panel is open
+                if (activeId || activeSa2Code) return;
                 var layer = sa2LayersByCode[code];
                 if (!layer) return;
                 var el = document.getElementById('sa2-hover-tooltip');
@@ -3010,6 +3029,8 @@
 
             function showRouteTooltip(id, clientX, clientY) {
                 if (!hoverEffectsEnabled) return;
+                // Don't show hover tooltip if a route or SA2 detail panel is open
+                if (activeId || activeSa2Code) return;
                 var el = document.getElementById('route-hover-tooltip');
                 el.style.maxWidth = '240px';
                 el.style.pointerEvents = 'none';
@@ -3174,7 +3195,25 @@
             });
 
             document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape' && pickerOpenIds) closePicker();
+                if (e.key === 'Escape') {
+                    // Close in order of priority: route detail > SA2 detail > picker > minimize settings
+                    if (activeId) {
+                        clearSelection();
+                        return;
+                    }
+                    if (activeSa2Code) {
+                        clearSa2Selection();
+                        return;
+                    }
+                    if (pickerOpenIds) {
+                        closePicker();
+                        return;
+                    }
+                    // If settings panel is expanded, minimize it
+                    if (freqControlEl && freqControlEl.style.display !== 'none') {
+                        collapseSettingsPanel();
+                    }
+                }
             });
 
             var sa2Fetch = fetch(SA2_URL)
