@@ -221,6 +221,15 @@
             padding: 18px 20px 20px;
         }
 
+        #detail::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #detail::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+            border-radius: 6px;
+        }
+
         .detail-close-btn {
             display: inline-flex;
             align-items: center;
@@ -1283,7 +1292,7 @@
 
             // Bucketed line-weight scale: lower average wait (more frequent) = thicker line.
             var FREQ_BUCKETS = [
-                { key: 'dark-red', max: 10, weight: 7.5, opacity: 0.92, color: '#5a0b0b', label: '10 min or less' },
+                { key: 'dark-red', max: 10, weight: 7.5, opacity: 0.92, color: '#e74c3c', label: '10 min or less' },
                 { key: 'red', max: 15, weight: 6, opacity: 0.9, color: '#b22323', label: '15 minutes' },
                 { key: 'purple', max: 22, weight: 4.6, opacity: 0.88, color: '#6e3ea8', label: '20 minutes' },
                 { key: 'blue', max: 33, weight: 3.2, opacity: 0.85, color: '#0f84a8', label: '30 minutes' },
@@ -2496,8 +2505,9 @@
             function sa2TooltipHtml(metricKey, props) {
                 var m = SA2_METRICS[metricKey];
                 var val = sa2MetricValue(metricKey, props);
+                var valueColor = sa2ColorForValue(metricKey, val);
                 return '<div class="tt-name">' + escapeHtmlGlobal(props.Area || props.SA2_CODE21) + '</div>' +
-                    '<div class="tt-value">' + escapeHtmlGlobal(m.label) + ': <strong>' + sa2FormatValue(m.format, val) + '</strong></div>';
+                    '<div class="tt-value">' + escapeHtmlGlobal(m.label) + ': <strong style="color:' + valueColor + '">' + sa2FormatValue(m.format, val) + '</strong></div>';
             }
 
             function routeTooltipHtml(id) {
@@ -2688,10 +2698,11 @@
                     var combinedWait = harmonicMeanWait(combinedWaits);
                     var combinedParts = fmtCombinedFreqValue(combinedWait);
                     if (combinedParts) {
+                        var combinedBucketColor = freqBucket(combinedWait).color;
                         var combinedRow = document.createElement('div');
                         combinedRow.className = 'tt-combined-freq';
                         combinedRow.innerHTML = escapeHtmlGlobal(combinedParts.prefix) +
-                            '<strong>' + escapeHtmlGlobal(combinedParts.bold) + '</strong>';
+                            '<strong style="color:' + combinedBucketColor + '">' + escapeHtmlGlobal(combinedParts.bold) + '</strong>';
                         el.appendChild(combinedRow);
                     }
                 }
@@ -2987,6 +2998,18 @@
                 document.getElementById('sa2-hover-tooltip').style.display = 'none';
             }
 
+            // Fully clears SA2 hover feedback (restores the polygon's base style and hides the
+            // tooltip). Shared by mouseout-from-map and mouseenter-onto-tooltip handling, since both
+            // mean the cursor is no longer meaningfully "over" the hovered SA2.
+            function clearSa2HoverState() {
+                if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                    sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                }
+                hoveredSa2Code = null;
+                hideSa2Tooltip();
+                map.getContainer().style.cursor = '';
+            }
+
             function showRouteTooltip(id, clientX, clientY) {
                 if (!hoverEffectsEnabled) return;
                 var el = document.getElementById('route-hover-tooltip');
@@ -3079,13 +3102,22 @@
                 });
 
                 map.on('mouseout', function () {
-                    if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
-                        sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
-                    }
-                    hoveredSa2Code = null;
-                    hideSa2Tooltip();
+                    clearSa2HoverState();
                     if (routeHoverId && !pickerOpenIds) clearRouteHoverState();
-                    mapContainer.style.cursor = '';
+                });
+
+                // Both hover tooltips are visually positioned on top of the map/panel, but even
+                // with pointer-events:none they can sit at the very edge of the map container or
+                // over other UI. If the cursor lands on the tooltip itself, treat that the same as
+                // having moved off the hovered feature — hide it immediately rather than leaving
+                // stale hover info stuck on screen. Skip this while a route picker is pinned open,
+                // since that popup is meant to be interacted with.
+                document.getElementById('sa2-hover-tooltip').addEventListener('mouseenter', function () {
+                    clearSa2HoverState();
+                });
+                document.getElementById('route-hover-tooltip').addEventListener('mouseenter', function () {
+                    if (pickerOpenIds) return;
+                    clearRouteHoverState();
                 });
 
                 map.on('click', function (e) {
