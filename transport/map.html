@@ -11,8 +11,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Only 'Inter' is actually referenced anywhere in this file's CSS (Source Serif 4 /
+         JetBrains Mono / Manrope are used but were never loaded, so they were already silently
+         falling back to system fonts). Barlow Condensed and IBM Plex Mono were being downloaded
+         for nothing — dropped to save an extra font request and some render-blocking time. -->
     <link
-        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
 
     <style>
@@ -1191,8 +1195,6 @@
             });
 
             var canvasRenderer = L.canvas({ padding: 0.5 });
-            map.createPane('densityPane');
-            map.getPane('densityPane').style.zIndex = 300;
 
             // SA2 choropleth sits above the basemap but below the route lines/halos,
             // so it reads as a background layer.
@@ -1365,7 +1367,6 @@
                 });
                 order.forEach(function (id) {
                     if (layersById[id]) layersById[id].bringToFront();
-                    if (hitLayersById[id]) hitLayersById[id].bringToFront();
                 });
             }
 
@@ -1376,18 +1377,12 @@
                 clearRouteHoverState();
                 Object.keys(layersById).forEach(function (id) {
                     var layer = layersById[id];
-                    var densityLayer = densityLayersById[id];
-                    var hitLayer = hitLayersById[id];
                     var props = routesById[id].properties;
                     var shouldBeVisible = isRouteBucketVisible(props);
                     if (shouldBeVisible) {
-                        if (densityLayer && !map.hasLayer(densityLayer)) densityLayer.addTo(map);
                         if (!map.hasLayer(layer)) layer.addTo(map);
-                        if (hitLayer && !map.hasLayer(hitLayer)) hitLayer.addTo(map);
                     } else {
                         if (map.hasLayer(layer)) map.removeLayer(layer);
-                        if (densityLayer && map.hasLayer(densityLayer)) map.removeLayer(densityLayer);
-                        if (hitLayer && map.hasLayer(hitLayer)) map.removeLayer(hitLayer);
                     }
                 });
                 if (activeId && !isRouteBucketVisible(routesById[activeId].properties)) {
@@ -1454,8 +1449,6 @@
             var countEl = document.getElementById('route-count');
 
             var layersById = {};
-            var densityLayersById = {};
-            var hitLayersById = {};
             var routesById = {};
             var listRowsById = {};
             var activeId = null;
@@ -1477,18 +1470,6 @@
                     lineCap: 'round',
                     lineJoin: 'round',
                     renderer: canvasRenderer
-                };
-            }
-
-            function densityStyle(props) {
-                return {
-                    color: '#bcc8d7',
-                    weight: 2.2,
-                    opacity: 0.1,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                    renderer: canvasRenderer,
-                    interactive: false
                 };
             }
 
@@ -1856,11 +1837,9 @@
             // routes whenever the (fast, built-in) hit test tells us the cursor/tap is over *a*
             // route, and if it finds more than one, we show a list so the user can choose.
             var routeBoundsById = {}; // route_id -> L.LatLngBounds, precomputed once per route
-            var ROUTE_HIT_TOLERANCE_PX = 9; // matches half the hitLayer's 18px weight
+            var ROUTE_HIT_TOLERANCE_PX = 9; // on-screen px tolerance for the manual line hit test
             var currentHoverIds = null; // ids currently previewed/highlighted from hover (1 or more)
             var pickerOpenIds = null; // non-null while the click-to-pick popup is pinned open
-            var routeHoverRafScheduled = false;
-            var pendingRouteHoverEvent = null;
 
             var SA2_COLOR_STOPS = {
                 access: ['#c0392b', '#e67e22', '#f1c40f', '#7dbb54', '#1a8a4a'],   // red -> amber -> yellow -> green
@@ -2248,7 +2227,7 @@
             }
 
             // ---- Manual hit-testing ----
-            // The route lines and their density-halo layer sit in panes above sa2Pane, and
+            // The route lines sit in a pane above sa2Pane, and
             // their canvas elements cover the whole map regardless of what's drawn, so real
             // Leaflet layer click/mouseover events on the SA2 polygons never fire. We hit-test
             // by hand against the map's own click/mousemove events instead.
@@ -2495,9 +2474,8 @@
                 var pt = map.latLngToLayerPoint(latlng);
                 var tol = ROUTE_HIT_TOLERANCE_PX;
                 var matches = [];
-                Object.keys(hitLayersById).forEach(function (id) {
-                    var hitLayer = hitLayersById[id];
-                    if (!hitLayer || !map.hasLayer(hitLayer)) return;
+                Object.keys(layersById).forEach(function (id) {
+                    if (!map.hasLayer(layersById[id])) return;
                     var bounds = routeBoundsById[id];
                     if (!bounds) return;
                     var sw = map.latLngToLayerPoint(bounds.getSouthWest());
@@ -2913,14 +2891,22 @@
                         return;
                     }
 
-                    if (routeHoverId) {
-                        // A route is being hovered — only the route should light up, so suppress SA2 hover feedback.
-                        if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
-                            sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                    // Routes sit visually above the SA2 choropleth, so they get first refusal on
+                    // every hover: if the cursor is over any visible route, that wins and SA2 hover
+                    // feedback is suppressed. This single check (plus the click check below) is the
+                    // only hit-testing this map does for routes — no separate per-route layers needed.
+                    if (!pickerOpenIds) {
+                        var routeCandidates = candidateRoutesAt(latlng);
+                        if (routeCandidates.length) {
+                            setRouteHoverState(routeCandidates, clientX, clientY);
+                            if (hoveredSa2Code && hoveredSa2Code !== activeSa2Code && sa2LayersByCode[hoveredSa2Code]) {
+                                sa2LayersByCode[hoveredSa2Code].setStyle(sa2BaseStyleObj(sa2LayersByCode[hoveredSa2Code].feature));
+                            }
+                            hoveredSa2Code = null;
+                            hideSa2Tooltip();
+                            return;
                         }
-                        hoveredSa2Code = null;
-                        hideSa2Tooltip();
-                        return;
+                        if (routeHoverId) clearRouteHoverState();
                     }
 
                     var code = findSa2AtLatLng(latlng);
@@ -2966,11 +2952,22 @@
                     }
                     hoveredSa2Code = null;
                     hideSa2Tooltip();
+                    if (routeHoverId && !pickerOpenIds) clearRouteHoverState();
                     mapContainer.style.cursor = '';
                 });
 
                 map.on('click', function (e) {
                     if (pickerOpenIds) { closePicker(); return; }
+
+                    var routeCandidates = candidateRoutesAt(e.latlng);
+                    if (routeCandidates.length > 1) {
+                        openPicker(routeCandidates, e.originalEvent.clientX, e.originalEvent.clientY);
+                        return;
+                    } else if (routeCandidates.length === 1) {
+                        selectRoute(routeCandidates[0], true);
+                        return;
+                    }
+
                     var code = findSa2AtLatLng(e.latlng);
                     if (code) {
                         hideSa2Tooltip();
@@ -3083,68 +3080,10 @@
 
                     var geoLayer = L.geoJSON(fc, {
                         style: function (f) { return baseStyle(f.properties); },
+                        interactive: false, // hit-testing is handled once, globally — see candidateRoutesAt
                         onEachFeature: function (f, layer) {
-                            densityLayersById[f.properties.route_id] = L.geoJSON(f, {
-                                pane: 'densityPane',
-                                style: densityStyle,
-                                interactive: false
-                            }).addTo(map);
                             layersById[f.properties.route_id] = layer;
-                            layer.options.interactive = false;
-
-                            // Invisible, much-wider line stacked on top of the visible route so the
-                            // clickable/hoverable area is generous even for thin, low-frequency lines.
-                            // Leaflet's canvas hit-testing uses the layer's own weight for tolerance
-                            // regardless of its (zero) opacity, so this doesn't change how anything looks.
-                            var hitLayer = L.geoJSON(f, {
-                                style: function () {
-                                    return {
-                                        color: '#000',
-                                        weight: 18,
-                                        opacity: 0,
-                                        lineCap: 'round',
-                                        lineJoin: 'round',
-                                        renderer: canvasRenderer
-                                    };
-                                }
-                            }).addTo(map);
-                            hitLayersById[f.properties.route_id] = hitLayer;
-                            routeBoundsById[f.properties.route_id] = hitLayer.getBounds();
-
-                            // Clicking/hovering this route's hit area finds ALL visible routes that pass
-                            // through this exact point (not just this one) — see candidateRoutesAt above.
-                            // That's what makes a high-frequency route fully covered by thinner, lower-
-                            // frequency routes still selectable: it shows up as one of the candidates.
-                            hitLayer.on('click', function (e) {
-                                L.DomEvent.stopPropagation(e);
-                                if (pickerOpenIds) { closePicker(); return; }
-                                var candidates = candidateRoutesAt(e.latlng);
-                                if (candidates.length > 1) {
-                                    openPicker(candidates, e.originalEvent.clientX, e.originalEvent.clientY);
-                                } else {
-                                    selectRoute(candidates[0] || f.properties.route_id, true);
-                                }
-                            });
-                            hitLayer.on('mouseover', function (e) {
-                                if (!hoverEffectsEnabled || pickerOpenIds) return;
-                                setRouteHoverState(candidateRoutesAt(e.latlng), e.originalEvent.clientX, e.originalEvent.clientY);
-                            });
-                            hitLayer.on('mousemove', function (e) {
-                                if (!hoverEffectsEnabled || pickerOpenIds) return;
-                                pendingRouteHoverEvent = e;
-                                if (routeHoverRafScheduled) return;
-                                routeHoverRafScheduled = true;
-                                requestAnimationFrame(function () {
-                                    routeHoverRafScheduled = false;
-                                    if (!pendingRouteHoverEvent || pickerOpenIds) return;
-                                    var ev = pendingRouteHoverEvent;
-                                    setRouteHoverState(candidateRoutesAt(ev.latlng), ev.originalEvent.clientX, ev.originalEvent.clientY);
-                                });
-                            });
-                            hitLayer.on('mouseout', function () {
-                                if (pickerOpenIds) return;
-                                clearRouteHoverState();
-                            });
+                            routeBoundsById[f.properties.route_id] = layer.getBounds();
                         }
                     }).addTo(map);
 
