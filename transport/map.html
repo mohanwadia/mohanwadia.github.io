@@ -417,6 +417,10 @@
             margin: 4px 0 4px;
         }
 
+        .sa2-metric-card .sa2-decile-scale {
+            margin: 0 0 6px;
+        }
+
         .sa2-decile-marker {
             position: absolute;
             top: -3px;
@@ -475,10 +479,6 @@
             grid-template-columns: 1fr 1fr;
             gap: 8px;
             margin-bottom: 4px;
-        }
-
-        .sa2-area-profile .sa2-seifa-card {
-            margin-bottom: 0;
         }
 
         .direction {
@@ -2899,18 +2899,14 @@
             }
 
             function sa2SeifaCardHtml(props) {
-                var score = props['SEIFA_Score'];
                 var decile = props['SEIFA_Decile'];
-                var hasScore = typeof score === 'number' && !isNaN(score);
                 var hasDecile = typeof decile === 'number' && !isNaN(decile);
                 var stops = SA2_COLOR_STOPS.seifa;
-                var band = hasDecile ? seifaBandLabel(decile) : null;
                 var markerPct = hasDecile ? ((decile - 1) / 9) * 100 : null;
-                return '<div class="sa2-seifa-card">' +
-                    '<div class="sa2-seifa-head">' +
-                    '<span class="sa2-seifa-score">' + escapeHtml(hasScore ? Math.round(score) : '—') + '</span>' +
-                    '<span class="sa2-seifa-band">' + escapeHtml(band || 'No data') + (hasDecile ? '<br/>D' + Math.round(decile) : '') + '</span>' +
-                    '</div>' +
+                var color = hasDecile ? interpolatePalette(stops, (decile - 1) / 9) : '#5a6172';
+                return '<div class="sa2-metric-card">' +
+                    '<p class="sa2-metric-card-label">SEIFA decile</p>' +
+                    '<p class="sa2-metric-value" style="color:' + color + '">' + escapeHtml(hasDecile ? 'Decile ' + Math.round(decile) : 'No data') + '</p>' +
                     '<div class="sa2-decile-scale" style="background:linear-gradient(to right,' + stops.join(',') + ')">' +
                     (markerPct !== null ? '<div class="sa2-decile-marker" style="left:' + markerPct + '%"></div>' : '') +
                     '</div>' +
