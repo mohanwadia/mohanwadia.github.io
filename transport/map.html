@@ -1573,7 +1573,7 @@
                         layer.setStyle({ weight: Math.max(fs.weight, 5), opacity: 1, dashArray: null });
                         layer.bringToFront();
                     } else {
-                        layer.setStyle({ weight: 2, opacity: 0.12 });
+                        layer.setStyle({ weight: 2, opacity: 0.25 });
                     }
                 });
             }
@@ -1670,7 +1670,7 @@
                 if (isInActiveGroup(id)) return;
                 if (activeGroupIds) {
                     routeGroupIds(id).forEach(function (gid) {
-                        if (layersById[gid]) layersById[gid].setStyle({ weight: 2, opacity: 0.12, dashArray: null });
+                        if (layersById[gid]) layersById[gid].setStyle({ weight: 2, opacity: 0.25, dashArray: null });
                     });
                     return;
                 }
@@ -2761,6 +2761,10 @@
             }
 
             function showMultiRouteTooltip(ids, clientX, clientY, pinned) {
+                if (!hoverEffectsEnabled) return;
+                // Don't show hover tooltip if a route or SA2 detail panel is open (unless pinned,
+                // i.e., this is the interactive picker that was just clicked open)
+                if (!pinned && (activeId || activeSa2Code)) return;
                 var el = document.getElementById('route-hover-tooltip');
                 el.style.maxWidth = '300px';
                 buildMultiRouteTooltip(el, ids, pinned);
@@ -2788,9 +2792,7 @@
 
             function closePicker() {
                 if (!pickerOpenIds) return;
-                if (currentHoverIds) {
-                    currentHoverIds.forEach(function (id) { unpreviewRoute(id); });
-                }
+                resetAllStyles();
                 currentHoverIds = null;
                 pickerOpenIds = null;
                 routeHoverId = null;
