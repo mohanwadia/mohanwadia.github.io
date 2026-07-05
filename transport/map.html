@@ -888,6 +888,16 @@
             color: var(--accent);
         }
 
+        .tt-combined-freq {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text);
+            background: rgba(0, 0, 0, 0.04);
+            border-radius: 5px;
+            padding: 4px 7px;
+            margin-bottom: 7px;
+        }
+
         .tt-picker-close {
             flex-shrink: 0;
             background: none;
@@ -1441,6 +1451,32 @@
             function fmtFreqValue(min) {
                 if (min === null || min === undefined || isNaN(min)) return 'No service';
                 return 'Every ' + Math.round(min) + ' min';
+            }
+
+            // Combines several routes' average-wait values (minutes) into a single "services
+            // approx. every x minutes" figure using the harmonic mean of their wait times. This
+            // matches the Poisson-superposition intuition: independent, uniformly-random arrivals
+            // combine such that the combined *rate* (1/wait) is the sum of the individual rates,
+            // so the combined average wait is the harmonic mean of the individual waits.
+            function harmonicMeanWait(values) {
+                var valid = values.filter(function (v) { return typeof v === 'number' && !isNaN(v) && v > 0; });
+                if (!valid.length) return null;
+                // Combined rate = sum of individual rates (1/wait); combined wait = 1 / combined rate.
+                var sumRates = valid.reduce(function (acc, v) { return acc + (1 / v); }, 0);
+                if (sumRates <= 0) return null;
+                return 1 / sumRates;
+            }
+
+            // Formats a combined-frequency minutes value. Once services are frequent enough
+            // (<= 2.5 min apart) minutes stop being a meaningful unit, so switch to seconds
+            // rounded to the nearest 10.
+            function fmtCombinedFreqValue(min) {
+                if (min === null || min === undefined || isNaN(min)) return null;
+                if (min <= 2.5) {
+                    var secs = Math.round((min * 60) / 10) * 10;
+                    return 'Services approx. every ' + secs + ' sec';
+                }
+                return 'Services approx. every ' + Math.round(min) + ' min';
             }
 
             var listEl = document.getElementById('list');
@@ -2552,6 +2588,7 @@
                 header.textContent = ids.length + ' routes run here' + (pinned ? ' — pick one' : '');
                 headerRow.appendChild(header);
                 if (pinned) {
+
                     var closeBtn = document.createElement('button');
                     closeBtn.className = 'tt-picker-close';
                     closeBtn.type = 'button';
@@ -2564,6 +2601,20 @@
                     headerRow.appendChild(closeBtn);
                 }
                 el.appendChild(headerRow);
+
+                var combinedPeriod = effectiveFreqPeriod();
+                var combinedWaits = ids.map(function (id) {
+                    var p = routesById[id].properties;
+                    return periodValue(freqEntryForRoute(p), combinedPeriod);
+                });
+                var combinedWait = harmonicMeanWait(combinedWaits);
+                var combinedText = fmtCombinedFreqValue(combinedWait);
+                if (combinedText) {
+                    var combinedRow = document.createElement('div');
+                    combinedRow.className = 'tt-combined-freq';
+                    combinedRow.textContent = combinedText;
+                    el.appendChild(combinedRow);
+                }
 
                 var list = document.createElement('div');
                 list.className = 'tt-multi-list';
