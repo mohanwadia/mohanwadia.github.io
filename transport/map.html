@@ -1233,8 +1233,10 @@
             <p class="freq-label">Dot Density</p>
             <select id="dots-select">
                 <option value="" selected>Off</option>
+                <option value="dwellings_by_pt_access">Dwellings by PT access</option>
                 <option value="served_pt400">Dwellings served by PT</option>
                 <option value="isolated_pt400">Dwellings isolated from PT</option>
+                <option value="dwellings_by_hq_pt_access">Dwellings by high-quality PT access</option>
                 <option value="served_pt800hq">Dwellings served by high-quality PT</option>
                 <option value="isolated_pt800hq">Dwellings isolated from high-quality PT</option>
             </select>
@@ -2060,6 +2062,24 @@
             }
 
             var DOT_METRICS = {
+                dwellings_by_pt_access: {
+                    computeServedCount: function (props) {
+                        var dwell = props['dwellings_2025'];
+                        var pct = props['% dwellings within 400m of any public transport service'];
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * pct;
+                    },
+                    computeIsolatedCount: function (props) {
+                        var dwell = props['dwellings_2025'];
+                        var pct = props['% dwellings within 400m of any public transport service'];
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * (1 - pct);
+                    },
+                    servedColor: '#22aa44',
+                    isolatedColor: '#aa2222',
+                    label: 'Dwellings by PT access',
+                    baseCaption: 'Green: within 400m of PT. Red: isolated from PT.'
+                },
                 served_pt400: {
                     computeCount: function (props) {
                         var dwell = props['dwellings_2025'];
@@ -2081,6 +2101,24 @@
                     label: 'Dwellings isolated from PT',
                     baseCaption: 'Dwellings >400m from PT.',
                     color: '#000000'
+                },
+                dwellings_by_hq_pt_access: {
+                    computeServedCount: function (props) {
+                        var dwell = props['dwellings_2025'];
+                        var pct = props['% dwellings with 800m of a high quality public transport service'];
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * pct;
+                    },
+                    computeIsolatedCount: function (props) {
+                        var dwell = props['dwellings_2025'];
+                        var pct = props['% dwellings with 800m of a high quality public transport service'];
+                        if (typeof dwell !== 'number' || typeof pct !== 'number' || isNaN(dwell) || isNaN(pct)) return null;
+                        return dwell * (1 - pct);
+                    },
+                    servedColor: '#22aa44',
+                    isolatedColor: '#aa2222',
+                    label: 'Dwellings by high-quality PT access',
+                    baseCaption: 'Green: within 800m of high-quality PT. Red: isolated from high-quality PT.'
                 },
                 served_pt800hq: {
                     computeCount: function (props) {
@@ -2460,32 +2498,93 @@
             // than have ever been created (positions are appended, never reshuffled), then
             // adds or removes just the difference between what's shown now and what's
             // wanted - so existing dots on screen never move or get regenerated.
-            function setSa2DotCount(metricKey, entry, numDots) {
+            function setSa2DotCount(metricKey, entry, numDots, servedDots) {
                 var m = DOT_METRICS[metricKey];
                 var state = ensureDotsMetricState(metricKey);
                 var sState = state.bySa2[entry.code];
-                if (!sState) { sState = { markers: [], shownCount: 0 }; state.bySa2[entry.code] = sState; }
-
-                if (numDots > sState.markers.length) {
-                    var pool = ensurePointPool(entry, numDots);
-                    for (var i = sState.markers.length; i < numDots; i++) {
-                        sState.markers.push(L.circleMarker(pool[i], {
-                            renderer: dotsRenderer,
-                            pane: 'dotsPane',
-                            radius: 2,
-                            stroke: false,
-                            fillColor: m.color,
-                            fillOpacity: 0.85
-                        }));
+                var isCombined = typeof m.computeServedCount === 'function' && typeof m.computeIsolatedCount === 'function';
+                
+                if (!sState) { 
+                    if (isCombined) {
+                        sState = { servedMarkers: [], isolatedMarkers: [], servedCount: 0, isolatedCount: 0 }; 
+                    } else {
+                        sState = { markers: [], shownCount: 0 };
                     }
+                    state.bySa2[entry.code] = sState; 
                 }
 
-                if (numDots > sState.shownCount) {
-                    for (var j = sState.shownCount; j < numDots; j++) state.group.addLayer(sState.markers[j]);
-                } else if (numDots < sState.shownCount) {
-                    for (var k = numDots; k < sState.shownCount; k++) state.group.removeLayer(sState.markers[k]);
+                if (isCombined) {
+                    // Combined metric with served and isolated dots
+                    var isolatedDots = numDots - servedDots;
+                    var pool = ensurePointPool(entry, numDots);
+                    
+                    // Create served markers
+                    if (servedDots > sState.servedMarkers.length) {
+                        for (var i = sState.servedMarkers.length; i < servedDots; i++) {
+                            sState.servedMarkers.push(L.circleMarker(pool[i], {
+                                renderer: dotsRenderer,
+                                pane: 'dotsPane',
+                                radius: 2,
+                                stroke: false,
+                                fillColor: m.servedColor,
+                                fillOpacity: 0.85
+                            }));
+                        }
+                    }
+                    
+                    // Create isolated markers
+                    if (isolatedDots > sState.isolatedMarkers.length) {
+                        for (var j = sState.isolatedMarkers.length; j < isolatedDots; j++) {
+                            sState.isolatedMarkers.push(L.circleMarker(pool[servedDots + j], {
+                                renderer: dotsRenderer,
+                                pane: 'dotsPane',
+                                radius: 2,
+                                stroke: false,
+                                fillColor: m.isolatedColor,
+                                fillOpacity: 0.85
+                            }));
+                        }
+                    }
+                    
+                    // Show/hide served markers
+                    if (servedDots > sState.servedCount) {
+                        for (var k = sState.servedCount; k < servedDots; k++) state.group.addLayer(sState.servedMarkers[k]);
+                    } else if (servedDots < sState.servedCount) {
+                        for (var l = servedDots; l < sState.servedCount; l++) state.group.removeLayer(sState.servedMarkers[l]);
+                    }
+                    
+                    // Show/hide isolated markers
+                    if (isolatedDots > sState.isolatedCount) {
+                        for (var m2 = sState.isolatedCount; m2 < isolatedDots; m2++) state.group.addLayer(sState.isolatedMarkers[m2]);
+                    } else if (isolatedDots < sState.isolatedCount) {
+                        for (var n = isolatedDots; n < sState.isolatedCount; n++) state.group.removeLayer(sState.isolatedMarkers[n]);
+                    }
+                    
+                    sState.servedCount = servedDots;
+                    sState.isolatedCount = isolatedDots;
+                } else {
+                    // Regular single-color metric
+                    if (numDots > sState.markers.length) {
+                        var pool2 = ensurePointPool(entry, numDots);
+                        for (var i2 = sState.markers.length; i2 < numDots; i2++) {
+                            sState.markers.push(L.circleMarker(pool2[i2], {
+                                renderer: dotsRenderer,
+                                pane: 'dotsPane',
+                                radius: 2,
+                                stroke: false,
+                                fillColor: m.color,
+                                fillOpacity: 0.85
+                            }));
+                        }
+                    }
+
+                    if (numDots > sState.shownCount) {
+                        for (var j2 = sState.shownCount; j2 < numDots; j2++) state.group.addLayer(sState.markers[j2]);
+                    } else if (numDots < sState.shownCount) {
+                        for (var k2 = numDots; k2 < sState.shownCount; k2++) state.group.removeLayer(sState.markers[k2]);
+                    }
+                    sState.shownCount = numDots;
                 }
-                sState.shownCount = numDots;
             }
 
             // Recomputes dot counts for the active metric at the current zoom/viewport.
@@ -2497,12 +2596,26 @@
                 var m = DOT_METRICS[currentDotsMetric];
                 var perUnit = dotsPerUnitForZoom(map.getZoom());
                 var viewBounds = map.getBounds();
+                var isCombined = typeof m.computeServedCount === 'function' && typeof m.computeIsolatedCount === 'function';
+                
                 sa2FeatureList.forEach(function (entry) {
-                    var count = m.computeCount(entry.feature.properties);
                     var inView = viewBounds.intersects(entry.bounds);
-                    var numDots = (inView && typeof count === 'number' && !isNaN(count) && count > 0)
-                        ? Math.round(count / perUnit) : 0;
-                    setSa2DotCount(currentDotsMetric, entry, numDots);
+                    
+                    if (isCombined) {
+                        var servedCount = m.computeServedCount(entry.feature.properties);
+                        var isolatedCount = m.computeIsolatedCount(entry.feature.properties);
+                        var totalCount = (typeof servedCount === 'number' && !isNaN(servedCount) ? servedCount : 0) +
+                                        (typeof isolatedCount === 'number' && !isNaN(isolatedCount) ? isolatedCount : 0);
+                        var numDots = (inView && totalCount > 0) ? Math.round(totalCount / perUnit) : 0;
+                        var servedDots = numDots > 0 && typeof servedCount === 'number' && !isNaN(servedCount)
+                            ? Math.round(servedCount / perUnit) : 0;
+                        setSa2DotCount(currentDotsMetric, entry, numDots, servedDots);
+                    } else {
+                        var count = m.computeCount(entry.feature.properties);
+                        var numDots = (inView && typeof count === 'number' && !isNaN(count) && count > 0)
+                            ? Math.round(count / perUnit) : 0;
+                        setSa2DotCount(currentDotsMetric, entry, numDots);
+                    }
                 });
                 updateDotsCaption(perUnit);
             }
