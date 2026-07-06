@@ -1214,6 +1214,7 @@
                 <option value="" selected>Off</option>
                 <option value="pt400">Any PT within 400m</option>
                 <option value="pt800hq">High-quality PT within 800m</option>
+                <option value="low_quality_pt_only">Low-quality PT only</option>
                 <option value="seifa_decile">SEIFA decile</option>
                 <option value="dwelling_density">Dwelling Density</option>
 
@@ -1991,6 +1992,17 @@
                     label: 'High-quality PT within 800m', shortLabel: 'HQ PT · 800m', format: 'percent',
                     domain: [0, 1], palette: 'access',
                     caption: 'Share of dwellings within 800m of a high-frequency PT service.'
+                },
+                low_quality_pt_only: {
+                    compute: function(props) {
+                        var pt400 = props['% dwellings within 400m of any public transport service'];
+                        var pt800hq = props['% dwellings with 800m of a high quality public transport service'];
+                        if (typeof pt400 !== 'number' || typeof pt800hq !== 'number' || isNaN(pt400) || isNaN(pt800hq)) return null;
+                        return pt400 - pt800hq;
+                    },
+                    label: 'Low-quality PT only', shortLabel: 'Low-quality PT only', format: 'percent',
+                    domain: [0, 1], palette: 'access_rev',
+                    caption: 'Share of dwellings within 400m of any PT minus those within 800m of high-quality PT.'
                 },
                 seifa_decile: {
                     prop: 'SEIFA_Decile',
