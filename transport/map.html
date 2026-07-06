@@ -234,8 +234,8 @@
 
         .detail-head-top {
             display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
+            align-items: center;
+            justify-content: center;
             gap: 8px;
         }
 
@@ -300,6 +300,14 @@
             line-height: 1.25;
             margin: 0 0 16px;
             color: var(--text);
+        }
+
+        .detail-head-top .detail-title {
+            margin: 0;
+        }
+
+        .detail-head-top .detail-close-btn {
+            margin-bottom: 0;
         }
 
         .stat {
@@ -564,8 +572,8 @@
 
         .freq-control-head {
             display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
+            align-items: center;
+            justify-content: center;
             gap: 8px;
             flex-shrink: 0;
             padding: 14px 16px;
@@ -589,11 +597,17 @@
 
         .freq-control-head .freq-label {
             margin: 0;
-            padding-top: 4px;
+            padding-top: 0;
+            font-family: 'Source Serif 4', sans-serif;
+            font-weight: 600;
+            font-size: 19px;
+            line-height: 1.25;
+            letter-spacing: 0.01em;
+            text-transform: none;
         }
 
         .freq-control-head .detail-close-btn {
-            margin-left: 0;
+            margin-left: auto;
             margin-bottom: 0;
             flex-shrink: 0;
         }
