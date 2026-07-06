@@ -1275,6 +1275,8 @@
                 <option value="low_quality_pt_only">Low-quality PT only</option>
                 <option value="seifa_decile">SEIFA decile</option>
                 <option value="dwelling_density">Dwelling Density</option>
+                <option value="num_vehicles">Number of Vehicles</option>
+                <option value="household_income">Household Income</option>
 
             </select>
             <div class="sa2-legend" id="sa2-legend">
@@ -2046,7 +2048,8 @@
                 access: ['#ff8a80', '#ff6b6b', '#ffaa33', '#66dd99', '#22aa44'],   // light red -> dark green (light to dark, red=bad to green=good)
                 access_rev: ['#22aa44', '#66dd99', '#ffaa33', '#ff6b6b', '#ff8a80'],   // reversed for metrics where high is bad
                 seifa: ['#e8f4ff', '#a8d8ff', '#6ba8ff', '#2563eb', '#1a3a7a'],   // light blue -> dark blue
-                count: ['#fff3e0', '#ffcc80', '#ffaa33', '#ff8811', '#cc5500']    // light amber -> dark brown (light to dark)
+                count: ['#fff3e0', '#ffcc80', '#ffaa33', '#ff8811', '#cc5500'],    // light amber -> dark brown (light to dark)
+                income: ['#f3e8ff', '#d8b4fe', '#a855f7', '#7c3aed', '#4c1d95']    // light purple -> dark purple
             };
 
             var SA2_METRICS = {
@@ -2101,6 +2104,18 @@
                     label: 'Dwelling Density', shortLabel: 'Dwelling Density', format: 'count',
                     domain: [0, 8000], palette: 'count', colorBy: 'percentile',
                     caption: 'Estimated dwelling density (dwellings per km²) by SA2, 2025.'
+                },
+                num_vehicles: {
+                    prop: 'avg_vehicles_per_household',
+                    label: 'Number of Vehicles', shortLabel: 'Vehicles/household', format: 'decimal',
+                    domain: [0, 3], palette: 'count', colorBy: 'percentile',
+                    caption: 'Average number of motor vehicles per household, 2021 Census. "4 or more" households counted as 4.5.'
+                },
+                household_income: {
+                    prop: 'avg_household_income_weekly',
+                    label: 'Household Income', shortLabel: 'Household income', format: 'currency_week',
+                    domain: [500, 3000], palette: 'income', colorBy: 'percentile',
+                    caption: 'Average weekly household income, 2021 Census (households with negative/nil or not-stated income excluded).'
                 }
             };
 
@@ -2376,6 +2391,8 @@
                     case 'count': return Math.round(value).toLocaleString();
                     case 'decile': return 'Decile ' + Math.round(value);
                     case 'score': return Math.round(value).toLocaleString();
+                    case 'decimal': return value.toFixed(2);
+                    case 'currency_week': return '$' + Math.round(value).toLocaleString() + '/wk';
                     default: return String(value);
                 }
             }
@@ -3170,6 +3187,8 @@
                 html += '<div class="sa2-area-profile">' +
                     sa2SeifaCardHtml(props) +
                     sa2MetricCardHtml('dwelling_density', props) +
+                    sa2MetricCardHtml('num_vehicles', props) +
+                    sa2MetricCardHtml('household_income', props) +
                     '</div>';
 
                 return html;
