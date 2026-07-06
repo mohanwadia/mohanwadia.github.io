@@ -705,6 +705,11 @@
             color: var(--text-muted);
         }
 
+        .freq-legend-row .freq-legend-toggle {
+            margin-top: 0;
+            gap: 8px;
+        }
+
         /* ---------- Line width control ---------- */
         #line-width-control {
             margin-top: 12px;
@@ -775,21 +780,20 @@
             border-top: 1px solid var(--hairline);
         }
 
-        #dots-select {
-            width: 100%;
-            background: var(--ink-elevated);
-            border: 1px solid var(--hairline);
-            border-radius: 8px;
-            padding: 8px 10px;
-            color: var(--text);
-            font-family: 'Manrope', sans-serif;
-            font-size: 13px;
-            outline: none;
-            cursor: pointer;
+        /* Dot density checkboxes */
+        #dots-control .sa2-hover-toggle {
+            margin-top: 8px;
         }
 
-        #dots-select:focus {
-            border-color: var(--accent);
+        #dots-control .sa2-hover-toggle:first-of-type {
+            margin-top: 10px;
+        }
+
+        #dots-control .dots-circle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
 
         .dots-ratio {
@@ -1176,7 +1180,6 @@
         <div id="line-colour-control">
             <p class="freq-label">Line colour</p>
             <select id="freq-select">
-                <option value="off">Off</option>
                 <option value="weekday_am_peak">Weekday AM Peak</option>
                 <option value="weekday_midday" selected>Weekday Midday</option>
                 <option value="weekday_offpeak">Weekday Evening</option>
@@ -1231,15 +1234,21 @@
 
         <div id="dots-control">
             <p class="freq-label">Dot Density</p>
-            <select id="dots-select">
-                <option value="" selected>Off</option>
-                <option value="dwellings_by_pt_access">Dwellings by PT access</option>
-                <option value="served_pt400">Dwellings served by PT</option>
-                <option value="isolated_pt400">Dwellings isolated from PT</option>
-                <option value="dwellings_by_hq_pt_access">Dwellings by high-quality PT access</option>
-                <option value="served_pt800hq">Dwellings served by high-quality PT</option>
-                <option value="isolated_pt800hq">Dwellings isolated from high-quality PT</option>
-            </select>
+            <label class="sa2-hover-toggle">
+                <span class="dots-circle" style="background-color: #22aa44;"></span>
+                <input type="checkbox" class="dots-access-checkbox" data-metric="served_pt800hq" value="served_pt800hq">
+                <span>High-Quality PT Access</span>
+            </label>
+            <label class="sa2-hover-toggle">
+                <span class="dots-circle" style="background-color: #ffaa33;"></span>
+                <input type="checkbox" class="dots-access-checkbox" data-metric="low_quality_only" value="low_quality_only">
+                <span>Low-Quality PT Access</span>
+            </label>
+            <label class="sa2-hover-toggle">
+                <span class="dots-circle" style="background-color: #aa2222;"></span>
+                <input type="checkbox" class="dots-access-checkbox" data-metric="isolated_pt400" value="isolated_pt400">
+                <span>No PT Access</span>
+            </label>
             <div class="sa2-legend" id="dots-legend">
                 <div class="dots-ratio" id="dots-ratio"></div>
                 <div class="sa2-legend-caption" id="dots-legend-caption"></div>
@@ -1336,19 +1345,19 @@
             var PERIODS = {
                 weekday_am_peak: { label: 'Weekday AM Peak' },
                 weekday_midday: { label: 'Weekday Midday' },
-                weekday_offpeak: { label: 'Weekday Offpeak' },
+                weekday_offpeak: { label: 'Weekday Evening' },
                 saturday_midday: { label: 'Saturday Midday' },
                 sunday_midday: { label: 'Sunday Midday' }
             };
 
             // Bucketed line-weight scale: lower average wait (more frequent) = thicker line.
             var FREQ_BUCKETS = [
-                { key: 'dark-red', max: 10, weight: 7.5, opacity: 0.92, color: '#e74c3c', label: '10 min or less' },
-                { key: 'red', max: 15, weight: 6, opacity: 0.9, color: '#b22323', label: '15 minutes' },
+                { key: 'dark-red', max: 10, weight: 7.5, opacity: 0.92, color: '#b22323', label: '10 min or less' },
+                { key: 'red', max: 15, weight: 6, opacity: 0.9, color: '#e74c3c', label: '15 minutes' },
                 { key: 'purple', max: 22, weight: 4.6, opacity: 0.88, color: '#6e3ea8', label: '20 minutes' },
                 { key: 'blue', max: 33, weight: 3.2, opacity: 0.85, color: '#0f84a8', label: '30 minutes' },
                 { key: 'teal', max: 66, weight: 2.1, opacity: 0.8, color: '#4ca3a3', label: '40-60 minutes' },
-                { key: 'brown', max: Infinity, weight: 1.3, opacity: 0.62, color: '#95783b', label: 'Peak Only / Limited Service' }
+                { key: 'brown', max: Infinity, weight: 1.3, opacity: 0.62, color: '#95783b', label: 'Limited Service' }
             ];
             var bucketVisibility = {};
             FREQ_BUCKETS.forEach(function (bucket) { bucketVisibility[bucket.key] = true; });
@@ -1495,7 +1504,7 @@
                     var dashClass = b.dash ? 'freq-swatch dashed' : 'freq-swatch';
                     var color = b.color || '#9AA3B8';
                     var checkboxHtml = b.key ?
-                        '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">' +
+                        '<label class="sa2-hover-toggle freq-legend-toggle">' +
                         '<input type="checkbox" class="freq-category-toggle" data-key="' + escapeHtmlGlobal(b.key) + '"' + (bucketVisibility[b.key] ? ' checked' : '') + ' />' +
                         '<span class="freq-legend-text">' + escapeHtmlGlobal(b.label) + '</span>' +
                         '</label>' :
@@ -1847,8 +1856,17 @@
 
                 var sa2SelectEl = document.getElementById('sa2-select');
                 var sa2Label = (sa2SelectEl && sa2SelectEl.selectedOptions[0]) ? sa2SelectEl.selectedOptions[0].text : 'Off';
-                var dotsSelectEl = document.getElementById('dots-select');
-                var dotsLabel = (dotsSelectEl && dotsSelectEl.selectedOptions[0]) ? dotsSelectEl.selectedOptions[0].text : 'Off';
+                
+                // Get labels from all checked PT access checkboxes
+                var checkedCheckboxes = document.querySelectorAll('.dots-access-checkbox:checked');
+                var dotsLabels = [];
+                checkedCheckboxes.forEach(function (checkbox) {
+                    var labelEl = checkbox.closest('.sa2-hover-toggle');
+                    if (labelEl) {
+                        dotsLabels.push(labelEl.querySelector('span:last-child').textContent);
+                    }
+                });
+                var dotsLabel = dotsLabels.length > 0 ? dotsLabels.join(' + ') : 'Off';
 
                 settingsMiniSummaryEl.innerHTML =
                     '<div><strong>Colour</strong> ' + escapeHtmlGlobal(colourLabel) + '</div>' +
@@ -2100,7 +2118,7 @@
                     },
                     label: 'Dwellings isolated from PT',
                     baseCaption: 'Dwellings >400m from PT.',
-                    color: '#000000'
+                    color: '#aa2222'
                 },
                 dwellings_by_hq_pt_access: {
                     computeServedCount: function (props) {
@@ -2129,7 +2147,7 @@
                     },
                     label: 'Dwellings served by high-quality PT',
                     baseCaption: 'Dwellings within 800m of high-quality PT.',
-                    color: '#000000'
+                    color: '#22aa44'
                 },
                 isolated_pt800hq: {
                     computeCount: function (props) {
@@ -2141,6 +2159,19 @@
                     label: 'Dwellings isolated from high-quality PT',
                     baseCaption: 'Dwellings >800m from high-quality PT.',
                     color: '#000000'
+                },
+                low_quality_only: {
+                    computeCount: function (props) {
+                        var dwell = props['dwellings_2025'];
+                        var pctAny = props['% dwellings within 400m of any public transport service'];
+                        var pctHq = props['% dwellings with 800m of a high quality public transport service'];
+                        if (typeof dwell !== 'number' || typeof pctAny !== 'number' || typeof pctHq !== 'number' ||
+                            isNaN(dwell) || isNaN(pctAny) || isNaN(pctHq)) return null;
+                        return dwell * Math.max(0, pctAny - pctHq);
+                    },
+                    label: 'Dwellings with low-quality PT only',
+                    baseCaption: 'Dwellings within 400m of PT but not within 800m of high-quality PT.',
+                    color: '#ffaa33'
                 }
             };
 
@@ -2591,9 +2622,21 @@
             // Only SA2s intersecting the visible map area are given dots (with dot counts
             // for off-screen areas dropped to 0, not discarded), which keeps the point count
             // reasonable even at the finest (1 dwelling per dot) zoom level.
-            function refreshDots() {
-                if (!currentDotsMetric || !sa2FeatureList.length) return;
-                var m = DOT_METRICS[currentDotsMetric];
+            function refreshDots(metricKey) {
+                // If no metric specified, refresh all active metrics
+                if (!metricKey) {
+                    if (activeDotsMetrics.size === 0 || !sa2FeatureList.length) return;
+                    activeDotsMetrics.forEach(function (metric) {
+                        refreshDotsForMetric(metric);
+                    });
+                    return;
+                }
+                refreshDotsForMetric(metricKey);
+            }
+
+            function refreshDotsForMetric(metricKey) {
+                if (!metricKey || !sa2FeatureList.length) return;
+                var m = DOT_METRICS[metricKey];
                 var perUnit = dotsPerUnitForZoom(map.getZoom());
                 var viewBounds = map.getBounds();
                 var isCombined = typeof m.computeServedCount === 'function' && typeof m.computeIsolatedCount === 'function';
@@ -2609,22 +2652,24 @@
                         var numDots = (inView && totalCount > 0) ? Math.round(totalCount / perUnit) : 0;
                         var servedDots = numDots > 0 && typeof servedCount === 'number' && !isNaN(servedCount)
                             ? Math.round(servedCount / perUnit) : 0;
-                        setSa2DotCount(currentDotsMetric, entry, numDots, servedDots);
+                        setSa2DotCount(metricKey, entry, numDots, servedDots);
                     } else {
                         var count = m.computeCount(entry.feature.properties);
                         var numDots = (inView && typeof count === 'number' && !isNaN(count) && count > 0)
                             ? Math.round(count / perUnit) : 0;
-                        setSa2DotCount(currentDotsMetric, entry, numDots);
+                        setSa2DotCount(metricKey, entry, numDots);
                     }
                 });
-                updateDotsCaption(perUnit);
+                updateDotsCaption(perUnit, metricKey);
             }
 
-            function updateDotsCaption(perUnit) {
+            function updateDotsCaption(perUnit, metricKey) {
                 var ratioEl = document.getElementById('dots-ratio');
                 var capEl = document.getElementById('dots-legend-caption');
-                if (!currentDotsMetric) return;
-                var m = DOT_METRICS[currentDotsMetric];
+                // Show caption for the first active metric
+                var metric = metricKey || Array.from(activeDotsMetrics)[0];
+                if (!metric) return;
+                var m = DOT_METRICS[metric];
                 var placementNote = sa1DataReady
                     ? ' Random positions within area.'
                     : ' Random positions within area.';
@@ -3341,13 +3386,37 @@
                 renderSettingsSummary();
             });
 
-            document.getElementById('dots-select').addEventListener('change', function () {
-                updateDotsDisplay(this.value);
-                renderSettingsSummary();
+            // Track active dot metrics
+            var activeDotsMetrics = new Set();
+
+            // Handle PT access checkbox changes
+            var dotsCheckboxes = document.querySelectorAll('.dots-access-checkbox');
+            dotsCheckboxes.forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    var metric = this.value;
+                    if (this.checked) {
+                        activeDotsMetrics.add(metric);
+                        ensureDotsMetricState(metric).group.addTo(map);
+                        ensureSa1Data().then(function () {
+                            if (activeDotsMetrics.has(metric)) refreshDots();
+                        });
+                    } else {
+                        activeDotsMetrics.delete(metric);
+                        if (dotsMetricState[metric]) {
+                            map.removeLayer(dotsMetricState[metric].group);
+                        }
+                    }
+                    renderSettingsSummary();
+                });
             });
 
+            // Update the moveend handler to refresh all active metrics
             map.on('moveend', function () {
-                if (currentDotsMetric) refreshDots();
+                if (activeDotsMetrics.size > 0) {
+                    activeDotsMetrics.forEach(function (metric) {
+                        if (dotsMetricState[metric]) refreshDots(metric);
+                    });
+                }
             });
 
             document.getElementById('zoom-on-click-toggle-input').addEventListener('change', function () {
