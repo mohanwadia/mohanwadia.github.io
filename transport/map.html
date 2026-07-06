@@ -54,6 +54,30 @@
             background: #dfe3e8;
         }
 
+        /* ---------- Watermark ---------- */
+        #watermark {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: #000;
+            color: var(--accent);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-weight: 500;
+            font-size: 11.5px;
+            letter-spacing: 0.02em;
+            padding: 6px 10px;
+            border-radius: 6px;
+            z-index: 1000;
+            text-decoration: none;
+            cursor: pointer;
+            user-select: none;
+            transition: opacity .12s ease;
+        }
+
+        #watermark:hover {
+            opacity: 0.8;
+        }
+
         /* ---------- Panel ---------- */
         #panel {
             position: absolute;
@@ -1198,6 +1222,7 @@
 <body>
 
     <div id="map"></div>
+    <a id="watermark" href="https://mohanwadia.com" target="_blank" rel="noopener noreferrer">Created by Mohan Wadia</a>
 
     <div id="sa2-hover-tooltip" class="sa2-tooltip"
         style="position:fixed; display:none; z-index:2000; pointer-events:none; max-width:220px;"></div>
@@ -1247,7 +1272,7 @@
                 <option value="sunday_midday">Sunday Midday</option>
             </select>
             <div class="freq-legend" id="freq-legend"></div>
-            <a class="sa2-legend-caption" href="https://ptmapmelb.com/frequencyfinder/" target="_blank" rel="noopener noreferrer" style="display: block; margin-top: 8px; color: var(--text-muted); text-decoration: none;">Data provided via FrequencyFinder. Frequency across a route may vary</a>
+            <a class="sa2-legend-caption" href="https://ptmapmelb.com/frequencyfinder/" target="_blank" rel="noopener noreferrer" style="display: block; margin-top: 8px; color: var(--text-muted); text-decoration: none;">Data provided via FrequencyFinder. Frequency may vary across a route.</a>
         </div>
 
         <div id="line-width-control">
@@ -1269,6 +1294,10 @@
             <label class="sa2-hover-toggle">
                 <input type="checkbox" class="route-type-toggle" data-type="tram" checked>
                 <span>Tram</span>
+            </label>
+            <label class="sa2-hover-toggle">
+                <input type="checkbox" id="train-toggle-input" checked>
+                <span>Train</span>
             </label>
         </div>
 
@@ -1380,6 +1409,13 @@
             map.getPane('dotsPane').style.pointerEvents = 'none';
             var dotsRenderer = L.canvas({ pane: 'dotsPane', padding: 0.3 });
 
+            // Train lines sit above the choropleth but below the bus/tram route lines, since
+            // they're a static grey backdrop rather than an interactive layer.
+            map.createPane('trainPane');
+            map.getPane('trainPane').style.zIndex = 380;
+            map.getPane('trainPane').style.pointerEvents = 'none';
+            var trainRenderer = L.canvas({ pane: 'trainPane', padding: 0.3 });
+
             // ---- Frequency data ----
             var FREQ_URL = 'https://cdn.jsdelivr.net/gh/adambain014/FrequencyFinder@main/route_jsons/summary.json';
             // freqById is namespaced by route_type ('bus' / 'tram') then route_number, since bus and
@@ -1393,6 +1429,7 @@
             var currentWidthMode = 'frequency';
             var BASE_LINE_WIDTH = 3.2;
             var TRAM_MODE_MULTIPLIER = 2;
+            var TRAIN_MODE_MULTIPLIER = 4; // train lines render 4x a bus's base width (= 2x a tram's)
             var WIDTH_MODE_LABELS = { off: 'Off', mode: 'Mode', frequency: 'Frequency', mode_frequency: 'Mode + Frequency' };
 
             // When LINE COLOUR is 'off' there's no period to derive frequency buckets/widths from,
@@ -1921,6 +1958,7 @@
                 var types = [];
                 if (routeTypeVisibility.bus) types.push('Bus');
                 if (routeTypeVisibility.tram) types.push('Tram');
+                if (trainVisible) types.push('Train');
 
                 var sa2SelectEl = document.getElementById('sa2-select');
                 var sa2Label = (sa2SelectEl && sa2SelectEl.selectedOptions[0]) ? sa2SelectEl.selectedOptions[0].text : 'Off';
@@ -3594,6 +3632,58 @@
                     console.warn('Could not load frequency data:', err.message);
                     return {};
                 });
+
+            // Blends a hex colour toward mid-grey so it reads as muted/desaturated rather than
+            // the full-strength GTFS brand colour — used for the static train backdrop layer.
+            function dullColor(hex, amount) {
+                if (typeof amount !== 'number') amount = 0.0;
+                var h = String(hex || '').replace('#', '');
+                if (h.length !== 6) return '#808080';
+                var r = parseInt(h.substring(0, 2), 16);
+                var g = parseInt(h.substring(2, 4), 16);
+                var b = parseInt(h.substring(4, 6), 16);
+                var grey = 140;
+                var mix = function (c) { return Math.round(c + (grey - c) * amount); };
+                var toHex = function (c) { return c.toString(16).padStart(2, '0'); };
+                return '#' + toHex(mix(r)) + toHex(mix(g)) + toHex(mix(b));
+            }
+
+            // ---- Train overlay: static grey backdrop, no frequency data, not clickable ----
+            var trainLayer = null;
+            var trainVisible = true;
+            fetch('train.geojson')
+                .then(function (r) { if (!r.ok) throw new Error('train http ' + r.status); return r.json(); })
+                .then(function (fc) {
+                    trainLayer = L.geoJSON(fc, {
+                        interactive: false,
+                        style: function (f) {
+                            return {
+                                color: dullColor(f.properties.color),
+                                weight: BASE_LINE_WIDTH * TRAIN_MODE_MULTIPLIER,
+                                opacity: 0.7,
+                                lineCap: 'round',
+                                lineJoin: 'round',
+                                renderer: trainRenderer
+                            };
+                        }
+                    });
+                    if (trainVisible) trainLayer.addTo(map);
+                })
+                .catch(function (err) {
+                    console.warn('Could not load train overlay data:', err.message);
+                    document.getElementById('train-toggle-input').closest('.sa2-hover-toggle').style.display = 'none';
+                });
+
+            document.getElementById('train-toggle-input').addEventListener('change', function () {
+                trainVisible = this.checked;
+                if (!trainLayer) return;
+                if (trainVisible) {
+                    trainLayer.addTo(map);
+                } else {
+                    map.removeLayer(trainLayer);
+                }
+                renderSettingsSummary();
+            });
 
             var routesFetch = fetch('routes.geojson')
                 .then(function (r) { return r.json(); });
