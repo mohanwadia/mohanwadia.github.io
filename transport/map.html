@@ -912,6 +912,11 @@
             line-height: 1.4;
         }
 
+        a.sa2-legend-caption:hover {
+            text-decoration: underline;
+            color: var(--accent);
+        }
+
         /* SA2 hover tooltip */
         .sa2-tooltip {
             background: var(--ink) !important;
@@ -1242,6 +1247,7 @@
                 <option value="sunday_midday">Sunday Midday</option>
             </select>
             <div class="freq-legend" id="freq-legend"></div>
+            <a class="sa2-legend-caption" href="https://ptmapmelb.com/frequencyfinder/" target="_blank" rel="noopener noreferrer" style="display: block; margin-top: 8px; color: var(--text-muted); text-decoration: none;">Data provided by FrequencyFinder</a>
         </div>
 
         <div id="line-width-control">
@@ -1308,7 +1314,6 @@
             </label>
             <div class="sa2-legend" id="dots-legend">
                 <div class="dots-ratio" id="dots-ratio"></div>
-                <div class="sa2-legend-caption" id="dots-legend-caption"></div>
             </div>
         </div>
 
@@ -1919,17 +1924,23 @@
 
                 var sa2SelectEl = document.getElementById('sa2-select');
                 var sa2Label = (sa2SelectEl && sa2SelectEl.selectedOptions[0]) ? sa2SelectEl.selectedOptions[0].text : 'Off';
-                
-                // Get labels from all checked PT access checkboxes
+
+                // Build a short "1:N Label" summary for the dots overlay based on which
+                // PT-access checkboxes are checked (e.g. "1:100 All", "1:50 Low + HQ", "Off").
+                var DOTS_SHORT_LABEL = { served_pt800hq: 'HQ', low_quality_only: 'Low', isolated_pt400: 'No' };
                 var checkedCheckboxes = document.querySelectorAll('.dots-access-checkbox:checked');
-                var dotsLabels = [];
-                checkedCheckboxes.forEach(function (checkbox) {
-                    var labelEl = checkbox.closest('.sa2-hover-toggle');
-                    if (labelEl) {
-                        dotsLabels.push(labelEl.querySelector('span:last-child').textContent);
-                    }
-                });
-                var dotsLabel = dotsLabels.length > 0 ? dotsLabels.join(' + ') : 'Off';
+                var checkedMetrics = Array.from(checkedCheckboxes).map(function (cb) { return cb.value; });
+                var dotsLabel;
+                if (checkedMetrics.length === 0) {
+                    dotsLabel = 'Off';
+                } else if (checkedMetrics.length === 3) {
+                    var perUnit = dotsPerUnitForZoom(map.getZoom());
+                    dotsLabel = '1:' + perUnit + ' All';
+                } else {
+                    var perUnit = dotsPerUnitForZoom(map.getZoom());
+                    var shortLabels = checkedMetrics.map(function (m) { return DOTS_SHORT_LABEL[m] || m; });
+                    dotsLabel = '1:' + perUnit + ' ' + shortLabels.join(' + ');
+                }
 
                 settingsMiniSummaryEl.innerHTML =
                     '<div><strong>Colour</strong> ' + escapeHtmlGlobal(colourLabel) + '</div>' +
@@ -2743,17 +2754,11 @@
 
             function updateDotsCaption(perUnit, metricKey) {
                 var ratioEl = document.getElementById('dots-ratio');
-                var capEl = document.getElementById('dots-legend-caption');
                 // Show caption for the first active metric
                 var metric = metricKey || Array.from(activeDotsMetrics)[0];
                 if (!metric) return;
-                var m = DOT_METRICS[metric];
-                var placementNote = sa1DataReady
-                    ? ' Random positions within area.'
-                    : ' Random positions within area.';
                 ratioEl.innerHTML = '1 dot &#8776; <span class="dots-ratio-value">' + perUnit.toLocaleString() +
                     '</span> dwelling' + (perUnit === 1 ? '' : 's');
-                capEl.textContent = m.baseCaption + placementNote;
             }
 
             function renderDotsLegend(metricKey) {
@@ -3486,6 +3491,7 @@
                             map.removeLayer(dotsMetricState[metric].group);
                         }
                     }
+                    renderDotsLegend(activeDotsMetrics.size > 0 ? metric : null);
                     renderSettingsSummary();
                 });
             });
@@ -3496,6 +3502,7 @@
                     activeDotsMetrics.forEach(function (metric) {
                         if (dotsMetricState[metric]) refreshDots(metric);
                     });
+                    renderSettingsSummary();
                 }
             });
 
