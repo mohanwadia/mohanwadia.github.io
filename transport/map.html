@@ -3636,16 +3636,7 @@
             // Blends a hex colour toward mid-grey so it reads as muted/desaturated rather than
             // the full-strength GTFS brand colour — used for the static train backdrop layer.
             function dullColor(hex, amount) {
-                if (typeof amount !== 'number') amount = 0.0;
-                var h = String(hex || '').replace('#', '');
-                if (h.length !== 6) return '#808080';
-                var r = parseInt(h.substring(0, 2), 16);
-                var g = parseInt(h.substring(2, 4), 16);
-                var b = parseInt(h.substring(4, 6), 16);
-                var grey = 140;
-                var mix = function (c) { return Math.round(c + (grey - c) * amount); };
-                var toHex = function (c) { return c.toString(16).padStart(2, '0'); };
-                return '#' + toHex(mix(r)) + toHex(mix(g)) + toHex(mix(b));
+                return '#808080'
             }
 
             // ---- Train overlay: static grey backdrop, no frequency data, not clickable ----
