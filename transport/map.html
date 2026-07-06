@@ -1074,6 +1074,47 @@
             color: var(--accent);
         }
 
+        .freq-finder-link {
+            display: block;
+            margin-top: 10px;
+            padding: 12px 14px;
+            border-radius: 9px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent);
+            text-align: center;
+            text-decoration: none;
+            transition: background 0.15s ease;
+        }
+
+        .freq-finder-link:hover {
+            background: var(--accent);
+        }
+
+        .freq-finder-link:hover .freq-finder-cta {
+            color: var(--ink);
+        }
+
+        .freq-finder-cta {
+            display: block;
+            font-family: 'Source Serif 4', sans-serif;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.02em;
+        }
+
+        .freq-finder-credit {
+            display: block;
+            margin-top: 4px;
+            font-size: 10.5px;
+            color: var(--text-muted);
+        }
+
+        .freq-finder-link:hover .freq-finder-credit {
+            color: var(--ink);
+            opacity: 0.85;
+        }
+
         .span-row {
             padding: 10px 12px;
             background: var(--ink-elevated);
@@ -1774,6 +1815,12 @@
                 } else {
                     freqHtml += '<div class="freq-row"><span class="freq-row-period">No frequency data available for this route.</span></div>';
                 }
+                var freqFinderRouteNum = String(props.short_name).replace(/^0+/, '') || props.short_name;
+                freqHtml += '<a class="freq-finder-link" target="_blank" rel="noopener noreferrer" ' +
+                    'href="https://ptmapmelb.com/frequencyfinder/?route=' + encodeURIComponent(freqFinderRouteNum) + '">' +
+                    '<span class="freq-finder-cta">View Route Info &rarr;</span>' +
+                    '<span class="freq-finder-credit">Data provided by Adam Bain via FrequencyFinder</span>' +
+                    '</a>';
 
                 detailEl.innerHTML =
                     '<div class="detail-head">' +
