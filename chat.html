@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+
+    <!--- basic page needs
+    ================================================== -->
+    <meta charset="utf-8">
+    <title>Chat - Mohan Wadia</title>
+    <meta name="description" content="Book a chat with Mohan Wadia">
+    <meta name="author" content="author">
+
+    <!-- mobile specific metas
+    ================================================== -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSS
+    ================================================== -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/vendor.css">
+
+    <!-- script
+    ================================================== -->
+    <script defer src="js/vendor/fontawesome/all.min.js"></script>
+
+    <!-- favicons
+    ================================================== -->
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="manifest" href="site.webmanifest">
+
+    <!-- page-specific layout fixes
+    ================================================== -->
+    <style>
+        /* Force a full-height, column layout: header, then flexible content, then footer.
+           This overrides any fixed/absolute positioning styles.css might set on .s-header
+           so the three sections always stack in normal document flow. */
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body#top.ss-preload {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .s-header {
+            position: static !important;
+            flex: 0 0 auto;
+            width: 100%;
+        }
+
+        .s-footer {
+            flex: 0 0 auto;
+        }
+
+        /* Main content area sits between header and footer and grows to fill
+           whatever space is left, so the calendar embed is never squashed to 0px. */
+        .cal-main {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            min-height: 0; /* allows flex children to shrink/grow correctly */
+        }
+
+        #my-cal-inline-all {
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: 600px; /* sensible floor on very short viewports */
+            overflow: auto;
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 1024px) {
+            #my-cal-inline-all {
+                min-height: 550px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #my-cal-inline-all {
+                min-height: 500px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #my-cal-inline-all {
+                min-height: 450px;
+            }
+        }
+
+        /* Landscape phones tend to be very short; give the embed room but
+           still allow scrolling inside it rather than breaking the page. */
+        @media (max-height: 480px) and (orientation: landscape) {
+            #my-cal-inline-all {
+                min-height: 380px;
+            }
+        }
+    </style>
+
+</head>
+
+<body id="top" class="ss-preload">
+
+
+    <!-- preloader
+    ================================================== -->
+    <div id="preloader">
+        <div id="loader"></div>
+    </div>
+
+
+    <!-- header
+    ================================================== -->
+    <header class="s-header">
+    <div class="row s-header__nav-wrap">
+        <nav class="s-header__nav">
+            <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="about-me.html">About Me</a></li>
+                    <li><a href="vce.html">VCE</a></li>
+                    <li><a href="blog">Blog</a></li>
+                    <li class="nav-right"><a href="tutoring.html">Tutoring Login</a></li>
+            </ul>
+        </nav>
+    </div> <!-- end row -->
+
+    <a class="s-header__menu-toggle" href="#0" title="Menu">
+        <span class="s-header__menu-icon"></span>
+    </a>
+</header> <!-- end s-header -->
+
+    <!-- main content: calendar embed
+    ================================================== -->
+    <main class="cal-main">
+        <!-- Cal inline embed code begins -->
+        <div id="my-cal-inline-all"></div>
+        <script type="text/javascript">
+          (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if(typeof namespace === "string"){cal.ns[namespace] = cal.ns[namespace] || api;p(cal.ns[namespace], ar);p(cal, ["initNamespace", namespace]);} else p(cal, ar); return;} p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
+        Cal("init", "all", {origin:"https://app.cal.com"});
+        Cal.config = Cal.config || {};
+        Cal.config.forwardQueryParams = true;
+          Cal.ns.all("inline", {
+            elementOrSelector:"#my-cal-inline-all",
+            config: {"layout":"weekly_view","useSlotsViewOnSmallScreen":"true","theme":"dark"},
+            calLink: "mohanwadia/all",
+          });
+          Cal.ns.all("ui", {"theme":"dark","cssVarsPerTheme":{"light":{"cal-brand":"#0E0E0E"},"dark":{"cal-brand":"#db792c"}},"hideEventTypeDetails":false,"layout":"week_view"});
+          </script>
+          <!-- Cal inline embed code ends -->
+    </main>
+
+
+    <!-- footer
+    ================================================== -->
+    <footer class="s-footer">
+        <div class="row">
+            <div class="column large-4 medium-6 w-1000-stack s-footer__social-block">
+                <ul class="s-footer__social">
+                    <li><a href="https://au.linkedin.com/in/mohan-wadia-0011b0271" target="_blank" rel="noopener noreferrer"><i class="fab fa-linkedin-in" aria-hidden="true"></i></a></li>
+                    <li><a href="mailto:mail@mohanwadia.com" target="_blank" rel="noopener noreferrer"><i class="fas fa-envelope" aria-hidden="true"></i></a></li>
+                    <li><a href="https://www.facebook.com/profile.php?id=61586548661812" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook" aria-hidden="true"></i></a></li>
+                    <li><a href="https://www.instagram.com/mohanwadia/" target="_blank" rel="noopener noreferrer"><i class="fab fa-instagram" aria-hidden="true"></i></a></li>
+                    <li><a href="https://github.com/mohanwadia" target="_blank" rel="noopener noreferrer"><i class="fab fa-github" aria-hidden="true"></i></a></li>
+                </ul>
+            </div>
+
+            <div class="column large-7 medium-6 w-1000-stack ss-copyright">
+                <span>ABN 32 217 965 649</span>
+                <span><a href="https://www.styleshout.com" target="_blank" rel="noopener noreferrer">Website template</a></span>
+            </div>
+        </div>
+
+        <div class="ss-go-top">
+            <a class="smoothscroll" title="Back to Top" href="#top">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 4h12v2H6zm5 10v6h2v-6h5l-6-6-6 6z"/></svg>
+             </a>
+        </div> <!-- end ss-go-top -->
+    </footer>
+
+
+    <!-- Java Script
+    ================================================== -->
+    <script src="js/plugins.js"></script>
+    <script src="js/main.js"></script>
+
+</body>
+
+</html>
