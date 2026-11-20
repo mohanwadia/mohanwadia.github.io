@@ -83,6 +83,33 @@
             line-height: 1.6;
         }
 
+        .newsletter-benefits {
+            display: grid;
+            gap: 1.4rem;
+            margin: 3.2rem 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .newsletter-benefits li {
+            display: flex;
+            align-items: flex-start;
+            color: #d8d9d9;
+            font-family: "Inter", sans-serif;
+            font-size: 1.55rem;
+            line-height: 1.5;
+        }
+
+        .newsletter-benefits li::before {
+            content: "";
+            width: 0.8rem;
+            height: 0.8rem;
+            flex: 0 0 0.8rem;
+            margin: 0.7rem 1.2rem 0 0;
+            border-radius: 50%;
+            background: #11abb0;
+        }
+
         .newsletter-panel {
             display: flex;
             flex-direction: column;
@@ -232,9 +259,9 @@
                 <ul>
                     <li><a href="index.html">Home</a></li>
                     <li><a href="about-me.html">About Me</a></li>
-                    <li><a href="vce.html">VCE</a></li>
                     <li><a href="blog">Blog</a></li>
-                    <li class="nav-right"><a href="tutoring.html">Tutoring Login</a></li>
+                    <li><a href="newsletter.html">Newsletter</a></li>
+                    <li><a href="vce.html">VCE Resources</a></li>
                 </ul>
             </nav>
         </div>
@@ -244,14 +271,13 @@
     <main class="newsletter-main">
         <section class="newsletter-card" aria-labelledby="newsletter-title">
             <div class="newsletter-copy">
-                <div class="newsletter-eyebrow">Mohan Wadia</div>
-                <h1 id="newsletter-title">The latest,<br>by email.</h1>
-                <p>Occasional updates on my studies, teaching, projects, and ideas worth sharing.</p>
+                <h1 id="newsletter-title">Tired of scrolling LinkedIn?</h1>
+                <p>Stay updated on the latest in transport and road safety in Australia, curated by me and delivered weekly to your inbox.</p>
             </div>
 
             <div class="newsletter-panel">
                 <h2>Join the Newsletter</h2>
-                <p class="formkit-subheader">Subscribe to get new content straight to your inbox.</p>
+                <p class="formkit-subheader"></p>
 
                 <form action="https://app.kit.com/forms/10217666/subscriptions"
                       class="seva-form formkit-form"
