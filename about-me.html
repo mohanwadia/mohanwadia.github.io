@@ -29,9 +29,37 @@
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="manifest" href="site.webmanifest">
 
+    <style>
+        .about-page #about {
+            background-color: var(--color-gray-1);
+            color: var(--color-gray-12);
+        }
+
+        .about-page #about h3 {
+            color: var(--color-gray-19);
+        }
+
+        .about-page #career,
+        .about-page #volunteering {
+            --color-border: var(--color-gray-15);
+            --color-text: var(--color-gray-3);
+            --color-text-dark: var(--color-white);
+            --color-text-light: var(--color-gray-6);
+            background-color: var(--color-gray-18);
+            color: var(--color-gray-3);
+        }
+
+        .about-page #career .section-header-allcaps,
+        .about-page #volunteering .section-header-allcaps,
+        .about-page #career .resume-block h4,
+        .about-page #volunteering .resume-block h4 {
+            color: var(--color-white);
+        }
+    </style>
+
 </head>
 
-<body id="top" class="ss-preload">
+<body id="top" class="about-page ss-preload">
 
 
     <!-- preloader
@@ -126,7 +154,8 @@
                 <br><br>
                 
                 I love making the complicated feel accessible, and that's why I'm dedicated to bridging the gap between my tertiary-level studies and the primary and secondary education systems through effective communication and a love of learning.
-          
+                </p>
+
                 <div style="display:none" class="row s-about__content-bottom">
                     
                     <div class="column w-1000-stack">
@@ -145,21 +174,107 @@
     <!-- resume
     ================================================== -->
     <section id="career" class="s-resume target-section">
-        
+
         <div class="row s-resume__section">
             <div class="column large-3 tab-12">
-                <h3 class="section-header-allcaps">Career</h3>
+                <h3 class="section-header-allcaps">Transport</h3>
             </div>
             <div class="column large-9 tab-12">
 
                 <div class="resume-block">
 
                     <div class="resume-block__header">
+                        <h4 class="h3">Transport Professionals Australia</h4>
+                        <p class="resume-block__header-meta">
+                            <span>Secretary (VIC/TAS)</span> 
+                            <span class="resume-block__header-date">
+                                November 2026 - Present
+                            </span>
+                        </p>
+                    </div>
+
+                    <p>
+                        
+                    </p>
+
+                </div> <!-- end resume-block -->
+
+                <div class="resume-block">
+
+                    <div class="resume-block__header">
+                        <h4 class="h3">Transport Engineers at Monash (ITE-ANZ Chapter)</h4>
+                        <p class="resume-block__header-meta">
+                            <span>Treasurer</span> 
+                            <span class="resume-block__header-date">
+                                October 2026 - Present
+                            </span>
+                        </p>
+                    </div>
+
+                    <p>
+                    
+                    </p>
+
+                </div> <!-- end resume-block -->
+
+                <div class="resume-block">
+
+                    <div class="resume-block__header">
+                        <h4 class="h3">Monash Railway Express (Student Team)</h4>
+                        <p class="resume-block__header-meta">
+                            <span>Engagement Lead</span> 
+                            <span class="resume-block__header-date">
+                                October 2026 - Present
+                            </span>
+                        </p>
+                    </div>
+
+                    <p>
+                    
+                    </p>
+
+                </div> <!-- end resume-block -->
+
+                
+
+            </div>
+        </div> <!-- s-resume__section -->
+
+    </section>
+
+    <section id="experience" class="s-resume target-section">
+        <div class="row s-resume__section">
+            <div class="column large-3 tab-12">
+                <h3 class="section-header-allcaps">Education</h3>
+            </div>
+            <div class="column large-9 tab-12">
+
+                <div class="resume-block">
+
+                    <div class="resume-block__header">
+                        <h4 class="h3">Digimaker</h4>
+                        <p class="resume-block__header-meta">
+                            <span>Programming Educator</span> 
+                            <span class="resume-block__header-date">
+                                April 2026 - December 2026
+                            </span>
+                        </p>
+                    </div>
+
+                    <p>
+                        Conducting 6 weekly coding classes at primary schools across Melbourne.
+                    </p>
+
+                </div> <!-- end resume-block -->
+
+                <div class="resume-block">
+
+                    <div class="resume-block__header">
                         <h4 class="h3">Skill Samurai</h4>
                         <p class="resume-block__header-meta">
-                            <span>Coach</span> 
+                            <span>Math & Coding Educator</span> 
                             <span class="resume-block__header-date">
-                                December 2025 - Present
+                                December 2025 - May 2026
                             </span>
                         </p>
                     </div>
@@ -170,22 +285,54 @@
 
                 </div> <!-- end resume-block -->
 
+                
+            </div>
+        </div> <!-- s-resume__section -->
+
+    </section>
+
+    <section id="volunteering" class="s-resume target-section">
+        <div class="row s-resume__section">
+            <div class="column large-3 tab-12">
+                <h3 class="section-header-allcaps">Volunteering</h3>
+            </div>
+            <div class="column large-9 tab-12">
+
                 <div class="resume-block">
 
                     <div class="resume-block__header">
-                        <h4 class="h3">Mazenod College</h4>
+                        <h4 class="h3">Engineers without Borders (Monash Chapter)</h4>
                         <p class="resume-block__header-meta">
-                            <span>Tutor</span> 
+                            <span>Outreach Officer</span> 
                             <span class="resume-block__header-date">
-                                February 2025 - Present
+                                September 2026 - Present
                             </span>
                         </p>
                     </div>
 
                     <p>
-                        Teaching Year 7-12 students at Mazenod College after-school.
+                        Leading the organization, facilitation, and presentation of Youth Outreach events. 
                     </p>
 
+                </div> <!-- end resume-block -->
+
+                <div class="resume-block">
+
+                    <div class="resume-block__header">
+                        <h4 class="h3">Monash City Council</h4>
+                        <p class="resume-block__header-meta">
+                            <span>Youth Committee Member</span> 
+                            <span class="resume-block__header-date">
+                                June 2026 - Present
+                            </span>
+                        </p>
+                    </div>
+
+                    <p>
+                    Generated youth outreach through promotion of the Mission Australia survey. <br>
+                    Delivered the 2026 youth art festival. <br>
+                    Attend monthly committee meetings to discuss issues involving youth.
+                    </p>
                 </div> <!-- end resume-block -->
 
                 <div class="resume-block">
@@ -205,6 +352,7 @@
                     Over 150 hours dedicated to my team's development.
                     </p>
                 </div> <!-- end resume-block -->
+
             </div>
         </div> <!-- s-resume__section -->
 
@@ -222,7 +370,7 @@
                     <div class="resume-block__header">
                         <h4 class="h3">Monash University</h4>
                         <p class="resume-block__header-meta">
-                            <span>Bachelor of Engineering: Masters Accelerated Program</span> 
+                            <span>Bachelor of Civil Engineering: Minor in Transport</span> 
                             <span class="resume-block__header-date">
                                 2026-2029
                             </span>
@@ -230,7 +378,7 @@
                     </div>
 
                     <p>
-                        Full-time load starting March 2026
+                        Commencing my second year of studies in March 2027. 
                     </p>
 
                 </div> 
@@ -276,51 +424,13 @@
 
                 </div>
                 
-                <div class="resume-block">
-
-                    <div class="resume-block__header">
-                        <h4 class="h3">Monash University</h4>
-                        <p class="resume-block__header-meta">
-                            <span>Monash Scholars Program</span> 
-                            <span class="resume-block__header-date">
-                                2023-2025
-                            </span>
-                        </p>
-                    </div>
-
-                    <p>
-                    Organised in association with Monash University in Melbourne, this program selects the top high performing students across Victoria to engage in workshops that aim to refine our future pathways and better our study and networking skills in high school.
-                    </p>
-
-                </div>
                 
-                                <div class="resume-block">
-
-                    <div class="resume-block__header">
-                        <h4 class="h3">Holy Family Mount Waverley</h4>
-                        <p class="resume-block__header-meta">
-                            <span>School Captain</span> 
-                            <span class="resume-block__header-date">
-                                2014-2019
-                            </span>
-                        </p>
-                    </div>
-
-                    <p>
-                    School Captain in Year 6, attending inter-school leadership events and creating initiatives within the school community. <br>
-                    Assisted in technology lunchtime groups for younger students.<br>
-                    Created screencasts with friends to assist peers in their numeracy and literacy skills. 
-                    </p>
-
-                </div>
-
+                
+                          
                 <!-- end resume-block -->
             </div>
         </div> <!-- s-resume__section -->
 
-
-            
-        </div> <!-- s-resume__section -->
 
     </section> <!-- end s-resume -->
 
@@ -460,8 +570,6 @@
             </div>
         </div> <!-- end modal -->
 
-
-    </section> <!-- end s-portfolio -->
 
     <!-- testimonials
     ================================================== -->
